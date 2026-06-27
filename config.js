@@ -14,6 +14,6 @@ window.SAMEWAY_CONFIG = {
   SUPABASE_ANON_KEY: "sb_publishable_tPjuKan5uDF2LwGVV8DFJQ_vdiBaFAG",
 
   // 관리자/광고주 페이지 접근 코드 (임시 보호). 바꿔서 쓰세요.
-  ADMIN_CODE: "ops2026",
-  ADV_CODE: "ads2026"
+  ADMIN_CODE: "muniverse",
+  ADV_CODE: ""
 };
