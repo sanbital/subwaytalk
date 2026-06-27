@@ -10,7 +10,7 @@
 // anon 키는 공개돼도 되는 키입니다(RLS로 보호). 비밀키(service_role)는 절대 넣지 마세요.
 // ============================================================
 window.SAMEWAY_CONFIG = {
-  SUPABASE_URL: "https://kkaoerbblpuszptiibvo.supabase.co/rest/v1/",
+  SUPABASE_URL: "https://kkaoerbblpuszptiibvo.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_tPjuKan5uDF2LwGVV8DFJQ_vdiBaFAG",
 
   // 관리자/광고주 페이지 접근 코드 (임시 보호). 바꿔서 쓰세요.
