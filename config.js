@@ -15,5 +15,5 @@ window.SAMEWAY_CONFIG = {
 
   // 관리자/광고주 페이지 접근 코드 (임시 보호). 바꿔서 쓰세요.
   ADMIN_CODE: "muniverse",
-  ADV_CODE: ""
+  ADV_CODE: "123"
 };
