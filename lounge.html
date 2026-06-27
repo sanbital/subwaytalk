@@ -518,7 +518,7 @@ function LoungeApp(){
   const [nickModal, setNickModal] = useState(false);
   const [pendingSend, setPendingSend] = useState(null);
   const [cards, setCards] = useState(SEED_CARDS);
-  const [cardIdx] = useState(0);
+  const [cardIdx, setCardIdx] = useState(0);
   const [ads, setAds] = useState(SEED_ADS);
   const [votes, setVotes] = useState({});
   const [messages, setMessages] = useState([]);
@@ -557,7 +557,9 @@ function LoungeApp(){
   const startMatch = async () => {
     setScreen("match");
     const loaded = await sget(K.cards, null);
-    if(loaded && loaded.length) setCards(loaded);
+    const list = (loaded && loaded.length) ? loaded : cards;
+    setCards(list);
+    setCardIdx(Math.floor(Math.random() * list.length));
     const la = await sget(K.ads, null);
     if(la && la.length) setAds(la);
     if(typeof navigator!=="undefined" && navigator.geolocation){
@@ -716,7 +718,7 @@ function LoungeApp(){
           <a onClick={()=>alert("위치정보 수집·이용 동의 상세 (준비 중)")}>동의 상세</a>
           <a onClick={()=>alert("위치정보 수집·이용 중지: 기기 설정 또는 앱 권한에서 언제든 해제할 수 있어요.")}>수집·이용 중지</a>
         </div>
-        <div className="alt"><button onClick={()=>{ setLocMode("mock"); setScreen("match"); setTimeout(()=>setScreen("lounge"),1600); }}>위치 없이 체험 라운지 둘러보기 →</button></div>
+        <div className="alt"><button onClick={()=>{ setLocMode("mock"); setCardIdx(Math.floor(Math.random()*cards.length)); setScreen("match"); setTimeout(()=>setScreen("lounge"),1600); }}>위치 없이 체험 라운지 둘러보기 →</button></div>
       </div>
     </div>
   );
