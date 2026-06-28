@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<title>칙칙톡톡 · 지하철 라운지</title>
+<title>같은 방향 · 지하철 라운지</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
@@ -59,6 +59,22 @@ const CSS = `
 .perm-sheet .plinks a{font-size:11px;color:var(--faint);text-decoration:underline;cursor:pointer}
 .perm-sheet .alt{text-align:center;margin-top:16px;font-size:12px}
 .perm-sheet .alt button{background:none;border:none;color:var(--c-d);font-weight:700;text-decoration:underline;cursor:pointer;font-size:12px}
+.perm-sheet .wordmark{text-align:center;font-size:27px;font-weight:900;letter-spacing:-0.03em;color:var(--ink);margin-bottom:2px}
+
+/* 빠른 반응 칩 */
+.quickrow{display:flex;gap:7px;overflow-x:auto;padding:2px 2px 9px;scrollbar-width:none}
+.quickrow::-webkit-scrollbar{display:none}
+.quickrow button{flex:none;background:var(--paper2);border:1px solid var(--line);color:var(--ink);border-radius:999px;
+  padding:8px 13px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.quickrow button:hover{border-color:var(--c);color:var(--c-d);background:var(--c-soft2)}
+
+/* 광고 바 — 접어두기/가로스크롤 */
+.adcollapsed{width:100%;background:var(--c-soft2);border:none;border-bottom:1px solid var(--c-soft);color:var(--c-d);
+  font-size:12.5px;font-weight:800;padding:9px 14px;text-align:left;cursor:pointer}
+.admarquee{overflow:hidden;white-space:nowrap;position:relative;margin-top:2px}
+.admarquee span{display:inline-block;font-size:12.5px;color:var(--muted);font-weight:600;padding-left:8px;animation:marq 13s linear infinite}
+.admarquee.short span{animation:none;padding-left:0}
+@keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
 .perm h1{font-size:25px;font-weight:800;line-height:1.34;margin:0 0 14px;letter-spacing:-0.02em}
 .perm .pill{display:inline-flex;align-items:center;gap:7px;background:var(--c-soft2);border:1px solid var(--c-soft);
   border-radius:999px;padding:7px 14px;font-size:12.5px;color:var(--c-d);font-weight:800;margin-bottom:22px;align-self:flex-start}
@@ -527,7 +543,8 @@ function LoungeApp(){
   const [sending, setSending] = useState(false);
   const [warn, setWarn] = useState("");
   const [showResult, setShowResult] = useState(false);
-  const [adClosed, setAdClosed] = useState(false);
+  const [adCollapsed, setAdCollapsed] = useState(false);
+  const [hiddenUsers, setHiddenUsers] = useState(()=>new Set());
   const [activeAd, setActiveAd] = useState(null);
   const [locMode, setLocMode] = useState("mock");   // mock | real
   const [nearest, setNearest] = useState(null);      // {name,idx,distM}
@@ -621,7 +638,7 @@ function LoungeApp(){
     const ad = ads.find(a=>a.active!==false && a.station===toStn);
     if(ad && adSeenRef.current !== ad.id+seg){
       adSeenRef.current = ad.id+seg;
-      setActiveAd(ad); setAdClosed(false);
+      setActiveAd(ad); setAdCollapsed(false);
       (async()=>{ const s=await sget(K.adstats,{}); s[ad.id]=s[ad.id]||{imp:0,clk:0}; s[ad.id].imp++; await sset(K.adstats,s); })();
     }
   },[arriving, locMode]);
@@ -632,7 +649,7 @@ function LoungeApp(){
     const ad = ads.find(a=>a.active!==false && a.station===nearest.name);
     if(ad && nearest.distM < 1500 && adSeenRef.current !== ad.id+"R"+nearest.name){
       adSeenRef.current = ad.id+"R"+nearest.name;
-      setActiveAd(ad); setAdClosed(false);
+      setActiveAd(ad); setAdCollapsed(false);
       (async()=>{ const s=await sget(K.adstats,{}); s[ad.id]=s[ad.id]||{imp:0,clk:0}; s[ad.id].imp++; await sset(K.adstats,s); })();
     }
   },[nearest, locMode]);
@@ -644,8 +661,7 @@ function LoungeApp(){
   const vote = async (optId) => {
     const v = await sget(K.votes, {});
     const cv = v[card.id] || { counts:{}, voters:{} };
-    const prev = cv.voters[sid]; if(prev===optId) return;
-    if(prev) cv.counts[prev] = Math.max(0,(cv.counts[prev]||1)-1);
+    if(cv.voters[sid]) return;            // 1인 1회 · 변경 불가
     cv.counts[optId] = (cv.counts[optId]||0)+1; cv.voters[sid]=optId;
     v[card.id]=cv; setVotes(v); await sset(K.votes, v);
   };
@@ -694,6 +710,7 @@ function LoungeApp(){
     r.push({ id:uid("rp"), msgId:msg.id, content:msg.content, nick:msg.nick, by:sid, status:"open", ts:now() });
     await sset(K.reports, r); setMessages(prev=> prev.filter(x=>x.id!==msg.id));
   };
+  const hideUser = (uid2)=> setHiddenUsers(s=>{ const n=new Set(s); n.add(uid2); return n; });
   const getOff = async () => {
     if(goneRef.current) return; goneRef.current = true;
     setMessages(prev=> prev.map(x=> x.sid===sid? {...x,_gone:true}:x));
@@ -709,7 +726,8 @@ function LoungeApp(){
     <div className="scr perm-screen">
       <div className="perm-hero"><img src={LOGO} alt="칙칙톡톡"/></div>
       <div className="perm-sheet">
-        <p className="tag">같은 방향으로 이동하는 동안만,<br/><b>익명으로 도란도란.</b></p>
+        <div className="wordmark">같은 방향</div>
+        <p className="tag">지금, 같은 방향 사람들과<br/><b>나누는 실시간 이야기.</b></p>
         <button className="cta" onClick={startMatch}>위치정보 수집·이용에 동의하고 입장하기</button>
         <p className="consent">입장하기를 누르면 위치정보 수집·이용 및 위치 기반 라운지 연결에 동의한 것으로 봅니다. 위치정보는 라운지 매칭 · 자동 하차 감지 · 역 도착 안내 목적으로만 이용되며, 다른 이용자나 광고주에게 제공되지 않아요.</p>
         <div className="plinks">
@@ -786,17 +804,22 @@ function LoungeApp(){
         </div>
       </div>
 
-      {activeAd && !adClosed && (
-        <div className="adbanner">
-          {activeAd.image ? <img className="adthumb" src={activeAd.image} alt=""/> : <div className="adbar"/>}
-          <div className="adbody">
-            <div className="adlabel">광고 · {activeAd.station}역</div>
-            <div className="adhead">{activeAd.brand} {activeAd.station}역점</div>
-            <div className="adoffer">{activeAd.offer}</div>
+      {activeAd && (
+        adCollapsed ? (
+          <button className="adcollapsed" onClick={()=>setAdCollapsed(false)}>📍 {activeAd.station}역 주변 혜택 보기 ▼</button>
+        ) : (
+          <div className="adbanner">
+            {activeAd.image ? <img className="adthumb" src={activeAd.image} alt=""/> : <div className="adbar"/>}
+            <div className="adbody">
+              <div className="adlabel">광고 · {activeAd.station}역 주변</div>
+              <div className={"admarquee"+(((activeAd.brand+" · "+activeAd.offer).length<22)?" short":"")}>
+                <span>{activeAd.brand} · {activeAd.offer}</span>
+              </div>
+            </div>
+            <a className="adcta" href={activeAd.url} target="_blank" rel="noreferrer" onClick={()=>clickAd(activeAd)}>{activeAd.cta||"매장 보기"}</a>
+            <button className="adx" onClick={()=>setAdCollapsed(true)} aria-label="접어두기" title="접어두기">▲</button>
           </div>
-          <a className="adcta" href={activeAd.url} target="_blank" rel="noreferrer" onClick={()=>clickAd(activeAd)}>{activeAd.cta||"매장 보기"}</a>
-          <button className="adx" onClick={()=>setAdClosed(true)} aria-label="광고 닫기">✕</button>
-        </div>
+        )
       )}
 
       <div className="feed" ref={feedRef}>
@@ -844,8 +867,8 @@ function LoungeApp(){
         })()}
 
         <div className="msgs">
-          {messages.length===0 && <div className="empty">첫 한 줄을 남겨보세요.<br/>카드에 대한 생각이면 좋아요.</div>}
-          {messages.map(m=>{
+          {messages.filter(m=>!hiddenUsers.has(m.sid)).length===0 && <div className="empty">첫 한 줄을 남겨보세요.<br/>카드에 대한 생각이면 좋아요.</div>}
+          {messages.filter(m=>!hiddenUsers.has(m.sid)).map(m=>{
             const liked = (m.likes||[]).includes(sid);
             return (
               <div key={m.id} className={"msg"+(m.sid===sid?" me":"")+(m._gone?" gone":"")}>
@@ -853,7 +876,11 @@ function LoungeApp(){
                 <div className="bd">{m.content}</div>
                 <div className="ft">
                   <button className={"like"+(liked?" on":"")} onClick={()=>like(m.id)}>👍 {(m.likes||[]).length||0}</button>
-                  {m.sid!==sid && <button className="rep" onClick={()=>report(m)}>신고</button>}
+                  {m.sid!==sid && <>
+                    <button className="rep" onClick={()=>report(m)}>신고</button>
+                    <button className="rep" onClick={()=>hideUser(m.sid)}>뮤트</button>
+                    <button className="rep" onClick={()=>hideUser(m.sid)}>차단</button>
+                  </>}
                 </div></div>);
           })}
         </div>
@@ -869,6 +896,10 @@ function LoungeApp(){
         <div className="nk">
           {nick ? <>이 라운지에서 <b>{nick}</b> <button onClick={()=>setNickModal(true)}>변경</button></>
                 : <>이름 없이 참여 중 · 첫 메시지에 이름을 정할 수 있어요</>}
+        </div>
+        <div className="quickrow">
+          {["출근 중이에요 🥱","오늘 퇴근 너무 늦네요","이 노선 사람 많다","점심 메뉴 추천받아요","지금 듣는 노래 공유해요","오늘 날씨 미쳤다"]
+            .map(q=><button key={q} onClick={()=>setText(q)}>{q}</button>)}
         </div>
         <div className="ipt">
           <textarea rows={1} maxLength={100} value={text} placeholder="한 줄 남기기 (100자)"
