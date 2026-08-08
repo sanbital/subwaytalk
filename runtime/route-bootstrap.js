@@ -15,15 +15,9 @@
     var current=buttons.find(function(b){return (b.textContent||'').trim()===target;});
     if(current&&!current.classList.contains('on'))current.click();
 
-    buttons.forEach(function(b){
-      var txt=(b.textContent||'').trim();
-      if(target==='사용자 앱'&&txt!=='사용자 앱')b.style.display='none';
-      if(target!=='사용자 앱')b.style.display='none';
-    });
-    if(target!=='사용자 앱'){
-      var bar=document.querySelector('.lg-topbar');
-      if(bar)bar.style.display='none';
-    }
+    // 상단 모드 전환바는 개발용이다. 어느 경로에서도 사용자에게 보일 이유가 없다.
+    var bar=document.querySelector('.lg-topbar');
+    if(bar)bar.style.display='none';
     return true;
   }
 

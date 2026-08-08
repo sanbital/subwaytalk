@@ -30,7 +30,18 @@
       };
       palette.querySelector('[data-sticker]').classList.add('on');s.querySelectorAll('#sameway-sticker-grid button').forEach(function(b){b.onclick=function(){placeSticker(+b.dataset.cell,selected,c);};});renderSticker(c);}
   }
-  function render(){var feed=document.querySelector('.feed');if(!feed)return;var legacy=feed.querySelector(':scope > .card');if(legacy)legacy.style.display='none';if(!document.getElementById('sameway-play-hub')){var hub=document.createElement('div');hub.id='sameway-play-hub';hub.innerHTML='<div class="sw-play-card" id="sameway-context-question"></div><div id="sameway-games"></div>';feed.insertBefore(hub,feed.firstChild);}renderQuestion();renderGames(ctx());mounted=true;}
+  // 부가 기능은 대화를 가리면 안 되므로 바텀시트 슬롯에만 그린다.
+  // (예전에는 피드 최상단에 끼워 넣어 채팅이 600px 아래로 밀려났다.)
+  function render(){
+    var slot=document.getElementById('sw-sheet-play');
+    if(!slot)return;
+    if(!document.getElementById('sameway-play-hub')){
+      var hub=document.createElement('div');hub.id='sameway-play-hub';
+      hub.innerHTML='<div class="sw-play-card" id="sameway-context-question"></div><div id="sameway-games"></div>';
+      slot.appendChild(hub);
+    }
+    renderQuestion();renderGames(ctx());mounted=true;
+  }
   var style=document.createElement('style');style.textContent='#sameway-play-hub{display:flex;flex-direction:column;gap:12px}.sw-play-card,.sw-game-card{background:#fff;border:1px solid #E1E5EB;border-radius:18px;padding:16px;box-shadow:0 2px 12px rgba(20,30,48,.05)}.sw-play-tag{font-size:10.5px;color:#0A8F77;font-weight:900;margin-bottom:8px}.sw-play-q,.sw-game-title{font-size:16px;font-weight:900;line-height:1.4}.sw-play-options,.sw-game-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.sw-play-options button,.sw-game-buttons button{border:1px solid #E1E5EB;background:#fff;border-radius:12px;padding:11px 8px;font-weight:800}.sw-play-options span{font-size:11px;color:#0A8F77}.sw-game-meta{font-size:11px;color:#727A86;margin-top:8px}.sw-story{font-size:13px;line-height:1.6;background:#F4F6F9;padding:11px;border-radius:12px}.sw-stickers{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}.sw-stickers button{border:1px solid #E1E5EB;background:#fff;border-radius:9px;padding:6px 8px;font-size:18px;line-height:1;cursor:pointer}.sw-stickers button.on{border-color:#16C7A6;background:#E7FAF5}#sameway-sticker-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}#sameway-sticker-grid button{aspect-ratio:1;border:0;border-radius:5px;background:#F4F6F9;font-size:15px}#sameway-games{display:flex;flex-direction:column;gap:12px}';document.head.appendChild(style);
   // 위치 이벤트는 GPS 틱마다 오므로 그대로 받으면 초당 여러 번 REST 질의를 던지고
   // 사용자가 만지던 UI 를 매번 새로 그려버린다. 컨텍스트 서명이 바뀔 때만 다시 그린다.

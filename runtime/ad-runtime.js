@@ -44,24 +44,24 @@
   function style(){
     if(document.getElementById('subway-v3-ad-style'))return;
     var s=document.createElement('style');s.id='subway-v3-ad-style';
-    s.textContent='\n.phone .adbanner{display:none!important}\n.subway-v3-ad{display:flex;align-items:center;gap:11px;padding:11px 13px 11px 12px;background:#fff;border-bottom:1px solid #E1E5EB}\n.subway-v3-ad .bar{width:3px;align-self:stretch;border-radius:2px;background:#16C7A6;flex:none}.subway-v3-ad img{width:46px;height:46px;border-radius:10px;object-fit:cover;border:1px solid #E1E5EB}\n.subway-v3-ad .body{flex:1;min-width:0}.subway-v3-ad .label{font-size:10px;font-weight:800;color:#A4ABB6}.subway-v3-ad .head{font-size:13.5px;font-weight:800;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subway-v3-ad .offer{font-size:12px;color:#727A86;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subway-v3-ad .cta{border:1.5px solid #16C7A6;background:#E7FAF5;color:#0A8F77;border-radius:11px;padding:9px 13px;font-size:12px;font-weight:800;white-space:nowrap}.subway-v3-ad .close{background:none;border:0;color:#A4ABB6;padding:4px}\n';
+    s.textContent='\n.phone .adbanner{display:none!important}\n.subway-v3-ad{display:flex;align-items:center;gap:9px;padding:7px 10px;background:#fff;border-bottom:1px solid #E1E5EB}\n.subway-v3-ad .bar{width:3px;align-self:stretch;border-radius:2px;background:#16C7A6;flex:none}.subway-v3-ad img{width:46px;height:46px;border-radius:10px;object-fit:cover;border:1px solid #E1E5EB}\n.subway-v3-ad .body{flex:1;min-width:0}.subway-v3-ad .label{font-size:10px;font-weight:800;color:#A4ABB6}.subway-v3-ad .head{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subway-v3-ad .offer{font-size:11px;color:#727A86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subway-v3-ad .cta{border:1px solid #16C7A6;background:#E7FAF5;color:#0A8F77;border-radius:9px;padding:6px 10px;font-size:11.5px;font-weight:800;white-space:nowrap}.subway-v3-ad .close{background:none;border:0;color:#A4ABB6;padding:4px}\n';
     document.head.appendChild(s);
   }
   function render(){
     queued=false;style();
-    var st=window.SAMEWAY_LOCATION_STATE||{},lh=document.querySelector('.phone .lh');if(!lh)return;
+    var st=window.SAMEWAY_LOCATION_STATE||{},slot=document.getElementById('sw-slot-ad');if(!slot)return;
     var a=pick(st),old=document.getElementById('subway-v3-ad');
     if(!a){if(old)old.remove();current=null;return;}
     if(old&&current===a.id)return;if(old)old.remove();
     var d=document.createElement('div');d.id='subway-v3-ad';d.className='subway-v3-ad';
     if(a.image_url){var img=document.createElement('img');img.src=a.image_url;img.alt='';d.appendChild(img);}else{var bar=document.createElement('div');bar.className='bar';d.appendChild(bar);}
     var body=document.createElement('div');body.className='body';
-    var label=document.createElement('div');label.className='label';label.textContent='광고 · '+st.stationKey+'역';
+    var label=document.createElement('div');label.className='label';label.textContent='광고';
     var head=document.createElement('div');head.className='head';head.textContent=a.brand;
     var offer=document.createElement('div');offer.className='offer';offer.textContent=a.offer;body.append(label,head,offer);d.appendChild(body);
     var cta=document.createElement('button');cta.className='cta';cta.textContent=a.cta||'매장 보기';cta.onclick=function(){event('click',a,st);window.open(a.target_url,'_blank','noopener,noreferrer');};d.appendChild(cta);
     var close=document.createElement('button');close.className='close';close.textContent='✕';close.setAttribute('aria-label','광고 닫기');close.onclick=function(){dismissed=a.id+':'+st.stationKey;d.remove();current=null;};d.appendChild(close);
-    lh.insertAdjacentElement('afterend',d);current=a.id;
+    slot.appendChild(d);current=a.id;
     if(!seen(a,st)){markSeen(a,st);event('impression',a,st);}
   }
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(render);}

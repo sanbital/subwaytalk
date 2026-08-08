@@ -11,7 +11,6 @@ const mustExist = [
   'runtime/storage-adapter.js',
   'runtime/location-engine.js',
   'runtime/commute-access.js',
-  'runtime/location-ui.js',
   'runtime/ad-runtime.js',
   'runtime/music-runtime.js',
   'runtime/social-play.js',
@@ -32,7 +31,7 @@ for (const path of mustExist) if (!fs.existsSync(path)) fail(`${path} is missing
 
 const obsolete = [
   'admin/app.js', 'advertiser/app.js', 'lounge.html', 'lounge.jsx',
-  'supabase_schema.sql', 'runtime/sticker-picker-fix.js'
+  'supabase_schema.sql', 'runtime/sticker-picker-fix.js', 'runtime/location-ui.js'
 ];
 for (const path of obsolete) if (fs.existsSync(path)) fail(`${path} is obsolete and must not exist`);
 
@@ -55,7 +54,7 @@ for (const path of ['admin/index.html', 'advertiser/index.html']) {
 const root = read('index.html');
 for (const script of [
   './runtime/storage-adapter.js', './runtime/location-engine.js', './runtime/commute-access.js',
-  './runtime/location-ui.js', './runtime/ad-runtime.js', './runtime/music-runtime.js',
+  './runtime/ad-runtime.js', './runtime/music-runtime.js',
   './runtime/social-play.js', './runtime/instant-chat.js',
   './runtime/chat-safety.js', './runtime/route-bootstrap.js'
 ]) if (!root.includes(script)) fail(`index.html is missing ${script}`);

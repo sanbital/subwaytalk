@@ -50,11 +50,19 @@
   function draw(){
     var box=document.getElementById('sameway-fast-messages');if(!box)return;
     var arr=Array.from(seen.values()).sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at);});
-    box.innerHTML=arr.length?arr.map(function(m){
-      var mine=m.pending||(me&&m.author===me);
-      return '<div class="sw-fast-msg '+(mine?'me':'')+'"><div class="n">'+(mine?'나':esc(m.nick))+'</div><div class="b">'+esc(m.body)+'</div></div>';
-    }).join(''):'<div class="sw-fast-empty">같은 방향 사람에게 가볍게 한마디 남겨보세요.</div>';
-    box.scrollTop=box.scrollHeight;
+    if(arr.length){
+      box.innerHTML=arr.map(function(m){
+        var mine=m.pending||(me&&m.author===me);
+        return '<div class="sw-fast-msg '+(mine?'me':'')+'">'+
+          '<div class="n">'+(mine?'나':esc(m.nick))+(m.is_ai?'<span class="ai">AI</span>':'')+'</div>'+
+          '<div class="b">'+esc(m.body)+'</div></div>';
+      }).join('');
+      box.scrollTop=box.scrollHeight;
+      return;
+    }
+    box.innerHTML=roomKey()
+      ? '<div class="sw-fast-empty"><div class="e-i">💬</div>같은 방향 사람에게<br/>가볍게 한마디 남겨보세요.</div>'
+      : '<div class="sw-fast-empty"><div class="e-i">🧭</div>이동 방향을 확인하는 중이에요.<br/><span>한두 정거장 지나면 같은 방향 라운지가 열려요.</span></div>';
   }
 
   async function poll(){
@@ -141,8 +149,23 @@
       btn.onclick=go;
       ta.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go();}});
     }
-    if(!mounted){mounted=true;schedulePoll();poll();}
+    syncComposer();
+    if(!mounted){mounted=true;schedulePoll();poll();draw();}
   }
+
+  // 방 상태에 따라 입력창을 열고 닫는다.
+  function syncComposer(){
+    var c=document.getElementById('sameway-fast-composer');if(!c)return;
+    var ready=!!roomKey();
+    var ta=c.querySelector('textarea'),btn=c.querySelector('button');
+    if(ta){ta.disabled=!ready;ta.placeholder=ready?'가볍게 한마디':'이동 방향 확인 중…';}
+    if(btn)btn.disabled=!ready;
+    c.classList.toggle('locked',!ready);
+  }
+  window.addEventListener('subway:location',function(){
+    var room=roomKey();
+    if(room!==currentRoom){syncComposer();draw();}
+  });
 
   document.addEventListener('click',function(e){
     var t=e.target;if(t&&t.closest&&t.closest('.getoff'))leave();
@@ -157,7 +180,7 @@
   mount();
 
   var style=document.createElement('style');
-  style.textContent='#sameway-fast-chat{display:flex;flex-direction:column;gap:8px}#sameway-fast-messages{display:flex;flex-direction:column;gap:8px;max-height:310px;overflow:auto}.sw-fast-msg{max-width:82%;background:#fff;border:1px solid #E1E5EB;border-radius:15px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,30,48,.05)}.sw-fast-msg.me{align-self:flex-end;background:#E7FAF5;border-color:#CFF3EB}.sw-fast-msg .n{font-size:10.5px;color:#727A86;font-weight:800;margin-bottom:3px}.sw-fast-msg .b{font-size:14px;line-height:1.45}.sw-fast-empty{text-align:center;color:#A4ABB6;font-size:12px;padding:18px}#sameway-fast-composer{padding:0 12px 10px}.sw-fast-row{display:flex;gap:8px}.sw-fast-row textarea{flex:1;border:1px solid #E1E5EB;border-radius:14px;padding:11px 12px;resize:none;font:inherit;outline:none}.sw-fast-row button{width:44px;border:0;border-radius:14px;background:#16C7A6;color:#fff;font-size:18px;font-weight:900}.sw-fast-note{font-size:10.5px;color:#A4ABB6;margin-top:5px}#sameway-fast-warning{font-size:11px;color:#E5484D;margin-bottom:4px}';
+  style.textContent='#sameway-fast-chat{display:flex;flex-direction:column;flex:1;min-height:0}#sameway-fast-messages{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;flex:1;min-height:0;overflow-y:auto}.sw-fast-msg{max-width:82%;background:#fff;border:1px solid #E1E5EB;border-radius:15px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,30,48,.05)}.sw-fast-msg.me{align-self:flex-end;background:#E7FAF5;border-color:#CFF3EB}.sw-fast-msg .n{font-size:10.5px;color:#727A86;font-weight:800;margin-bottom:3px}.sw-fast-msg .b{font-size:14px;line-height:1.45}.sw-fast-empty{text-align:center;color:#A4ABB6;font-size:12.5px;line-height:1.7;padding:38px 20px;font-weight:650}.sw-fast-empty .e-i{font-size:30px;margin-bottom:10px;opacity:.75}.sw-fast-empty span{font-size:11.5px;color:#C2C8D0}.sw-fast-msg .n .ai{margin-left:5px;padding:1px 5px;border-radius:5px;background:#EEF1F5;color:#8A93A0;font-size:9px;font-weight:800;vertical-align:1px}#sameway-fast-composer.locked{opacity:.55}#sameway-fast-composer{padding:0 12px 10px}.sw-fast-row{display:flex;gap:8px}.sw-fast-row textarea{flex:1;border:1px solid #E1E5EB;border-radius:14px;padding:11px 12px;resize:none;font:inherit;outline:none}.sw-fast-row button{width:44px;border:0;border-radius:14px;background:#16C7A6;color:#fff;font-size:18px;font-weight:900}.sw-fast-note{font-size:10.5px;color:#A4ABB6;margin-top:5px}#sameway-fast-warning{font-size:11px;color:#E5484D;margin-bottom:4px}';
   document.head.appendChild(style);
 
   window.SAMEWAY_INSTANT_CHAT={version:'5.0.0',send:send,leave:leave,poll:poll,roomKey:roomKey};
