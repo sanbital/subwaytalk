@@ -2,118 +2,100 @@
 
 위치 기반 익명 지하철 라운지. 사용자가 이동 중인 노선·방향·역을 추론해 같은 이동 맥락의 라운지, 위치 광고, 상황별 음악 편성을 제공합니다.
 
-## 현재 구조
+## 빌드
 
-운영 배포는 GitHub Pages 정적 배포를 유지하되, 세 화면이 **하나의 canonical bundle**을 사용합니다.
+`app.js` 는 **빌드 산출물**입니다. 직접 편집하지 마세요.
+
+```bash
+npm install
+npm run build    # src/main.jsx → app.js
+npm run check    # 문법 + 구조 + 번들 재현성 검사
+```
+
+`npm run check:build` 가 `src/` 를 다시 빌드해 커밋된 `app.js` 와 바이트 단위로 비교합니다.
+과거에 `app.js` 와 `src/App.jsx` 가 서로 다른 세대로 갈라져 **배포본에서 관리자/광고주 화면이 통째로 사라진 적**이 있어, CI 가 그 재발을 막습니다.
+
+## 구조
 
 ```text
 /
 ├─ index.html                  사용자 라운지
-├─ app.js                      canonical production bundle
-├─ config.js                   공개 Supabase 설정(anon key only)
+├─ app.js                      빌드 산출물 (커밋됨, 직접 수정 금지)
+├─ config.js                   공개 설정(anon key only, 접근 코드 없음)
 ├─ stations.js                 수도권 역 좌표
 ├─ src/
-│  └─ App.jsx                  canonical React source
+│  ├─ main.jsx                 엔트리
+│  └─ App.jsx                  라운지 · 관리자 · 광고주 화면
 ├─ runtime/
-│  ├─ storage-adapter.js       Subwaytalk 전용 상태 저장소
-│  ├─ location-engine.js       선로 구간 기반 위치·방향 판정
-│  ├─ location-ui.js           실제 위치 상태 UI
+│  ├─ storage-adapter.js       Subwaytalk 상태 저장소 + 운영 콘솔 인증 클라이언트
+│  ├─ location-engine.js       선로 구간 기반 위치·방향 판정 (앱 전체의 유일한 위치 공급원)
+│  ├─ location-ui.js           위치 상태 UI
+│  ├─ commute-access.js        탑승 판정 게이트
 │  ├─ ad-runtime.js            역/노선/반경 기반 광고
-│  ├─ music-runtime.js         위치·시간대·날씨 기반 음악 편성
+│  ├─ music-runtime.js         상황별 플레이리스트 선택기(재생은 앱 플레이어가 담당)
+│  ├─ social-play.js           질문·게임·스티커 보드
+│  ├─ instant-chat.js          탑승 중 임시 대화
+│  ├─ chat-safety.js           클라이언트 1차 차단
 │  └─ route-bootstrap.js       /admin, /advertiser 화면 라우팅
-├─ admin/index.html            canonical app.js 재사용
-├─ advertiser/index.html       canonical app.js 재사용
+├─ supabase/functions/         subway-message · subway-admin · subway-ad-event
 ├─ supabase/migrations/        재현 가능한 DB 마이그레이션
-└─ scripts/validate-structure.mjs
+└─ scripts/                    빌드 · 구조 검사
 ```
 
-`admin/app.js`, `advertiser/app.js`, 오래된 `lounge.html`, 루트 `lounge.jsx`, 과거 `supabase_schema.sql`은 더 이상 사용하지 않습니다.
+## 서버 시크릿
+
+접근 코드와 서명 키는 저장소에 두지 않습니다. Supabase 프로젝트 시크릿으로 설정하세요.
+
+| 시크릿 | 쓰이는 곳 |
+| --- | --- |
+| `SUBWAY_ADMIN_CODE` | 운영 콘솔 접근 코드 |
+| `SUBWAY_ADV_CODE` | 광고주 콘솔 접근 코드 |
+| `SUBWAY_ADMIN_SECRET` | 콘솔 세션 토큰 서명 |
+| `SUBWAY_CHAT_SECRET` | 채팅 세션 토큰·익명 author 해시 서명 |
+
+```bash
+supabase secrets set SUBWAY_ADMIN_CODE=... SUBWAY_ADV_CODE=... \
+  SUBWAY_ADMIN_SECRET="$(openssl rand -hex 32)" SUBWAY_CHAT_SECRET="$(openssl rand -hex 32)"
+supabase functions deploy subway-message subway-admin subway-ad-event
+supabase db push
+```
 
 ## 위치 판정
 
-단순 최근접 역 판정이 아니라 사용자의 연속 위치를 **노선의 역-역 segment에 투영**합니다.
+단순 최근접 역 판정이 아니라 사용자의 연속 위치를 **노선의 역-역 segment 에 투영**합니다.
 
 - 이전 매칭 노선 연속성 가중
 - 환승역에서 순간적인 호선 점프 억제
-- 연속 segment 진행도 + 기기 heading으로 진행 방향 추론
+- 연속 segment 진행도 + 기기 heading 으로 진행 방향 추론
 - 철도 물리 노선명을 승객용 호선명으로 정규화
-- 괄호형 부역명 제거 후 역 키 정규화
+- 괄호형 부역명을 제거한 키로 매칭 (원본 역명 데이터는 변형하지 않음)
+- 순환선 구간은 좌표에서 자동 감지 (인덱스 하드코딩 없음)
 - 신뢰도가 낮으면 광고/음악 위치 타기팅을 보류
 
-정확한 위도·경도는 Supabase에 저장하지 않습니다.
+지하 구간에서는 위성 fix 가 잡히지 않으므로 **저정밀(와이파이/기지국) 측위와 고정밀 GPS 를 함께** 열어 두고 먼저 도착하는 값을 씁니다. 고정밀 단일 호출만 쓰던 예전 방식은 터널에서 항상 timeout 되어 사용자가 영구히 체험 모드로 떨어졌습니다.
+
+정확한 위도·경도는 Supabase 에 저장하지 않습니다.
 
 ## 광고
 
-광고는 `subway_ads`에서 가져옵니다. 노출 조건은 다음을 모두 통과해야 합니다.
+노출 조건은 다음을 모두 통과해야 합니다.
 
-- station key 일치
-- line key가 지정된 캠페인은 line까지 일치
-- 위치 판정 confidence가 low가 아님
+- station key 일치, line key 가 지정된 캠페인은 line 까지 일치
+- 위치 판정 confidence 가 low 가 아님
 - 캠페인 반경 안에 있음(기본 220m)
 - 동일 세션/역 중복 impression 방지
 
-광고 이벤트는 `subway_ad_events`에 coarse station/line, 익명 세션 해시, GPS 정확도와 역까지 거리만 기록합니다.
+노출·클릭은 `subway-ad-event` 함수를 통해서만 기록됩니다. 함수가 캠페인 실재 여부·타겟 일치·반경·세션당 빈도를 서버에서 다시 검증하며, 익명 클라이언트의 `subway_ad_events` 직접 INSERT 는 차단돼 있습니다.
 
-## 음악 자동 편성
+## 대화
 
-`subway_music_rules`에서 현재 맥락과 가장 잘 맞는 YouTube/YouTube Music playlist를 고릅니다.
+- 방 키는 `노선|방향` 으로 안정적으로 유지됩니다(역마다 갈라지지 않음).
+- 세션 토큰이 있어야 전송·퇴장이 가능하며, 자기 세션만 삭제할 수 있습니다.
+- 응답에는 `session_id` 대신 방 안에서만 유효한 익명 author 해시가 나갑니다.
+- 폴링은 2초에서 시작해 조용하면 최대 15초까지 늘어나고, 탭이 숨으면 멈춥니다.
 
-우선순위 점수는 대략 `역 > 노선 > 날씨 > 시간대 > 편집 우선순위`입니다. 날씨는 사용자의 정확한 위치가 아니라 **판정된 역 좌표**로 Open-Meteo 현재 날씨를 조회합니다. 룰이 없으면 기본 편성으로 폴백합니다.
+## 알려진 한계
 
-관리자가 이후 `subway_music_rules`에 playlist와 다음 조건을 추가하면 앱 코드 수정 없이 편성을 확장할 수 있습니다.
-
-- `station_key`
-- `line_key`
-- `weather_tag`: clear / cloudy / rain / snow / storm / fog
-- `daypart`: dawn / morning / day / evening / night
-- `hashtags`
-- `priority`
-
-## 상태 저장소
-
-기존 프로젝트의 범용 `public.kv`는 더 이상 Subwaytalk 런타임 저장소로 사용하지 않습니다.
-
-Subwaytalk 상태는 `public.subway_runtime_state`로 이관되었습니다. 기존 `lounge:*`, `admin:*` 데이터는 마이그레이션 시 복사되며, 프론트에서는 `runtime/storage-adapter.js`가 기존 `window.storage` 인터페이스를 유지해 UI 회귀 없이 새 테이블을 사용합니다.
-
-네트워크 장애 시에는 브라우저 로컬 캐시로 폴백합니다.
-
-## Supabase 테이블
-
-Subwaytalk가 사용하는 전용 테이블은 다음과 같습니다.
-
-- `subway_runtime_state`
-- `subway_ads`
-- `subway_ad_events`
-- `subway_music_rules`
-
-모두 RLS를 사용합니다. 이 저장소의 Subwaytalk 마이그레이션은 같은 Supabase 프로젝트의 Idol Camp / scoreboard / meme 관련 테이블을 수정하지 않습니다.
-
-## 화면 경로
-
-- `/` 사용자 라운지
-- `/admin/` 운영 화면
-- `/advertiser/` 광고주 화면
-
-세 경로는 같은 `app.js`를 사용하고 `runtime/route-bootstrap.js`가 경로에 맞는 화면만 활성화합니다. 사용자 루트에서는 운영/광고주 모드 버튼을 숨깁니다.
-
-## 검증
-
-```bash
-npm run check
-```
-
-검사는 다음을 확인합니다.
-
-1. 모든 runtime JavaScript 문법
-2. 중복 admin/advertiser 번들이 존재하지 않는지
-3. 세 HTML 진입점이 canonical bundle/adapter를 참조하는지
-4. 운영에 필요한 runtime 파일 존재 여부
-5. `config.js`에 service-role secret이 들어가지 않았는지
-
-GitHub Actions에서도 동일 검사를 실행합니다.
-
-## 보안 주의
-
-`config.js`에는 **Supabase publishable/anon key만** 둘 수 있습니다. `service_role`은 절대 브라우저에 넣지 않습니다.
-
-현재 관리자/광고주 접근 코드는 기존 정적 UI 호환을 위해 남아 있습니다. 이것은 인증이 아니라 UI 게이트이므로, 실제 상용 광고주 계정·결제·관리자 권한을 붙일 때는 Supabase Auth + 역할 기반 RLS로 교체해야 합니다.
+- 투표·게임·스티커는 세션 해시 단위로만 제한됩니다. 세션을 새로 만드는 방식의 어뷰징은 기기 attestation 없이는 완전히 막을 수 없습니다.
+- 탑승 판정(`ENFORCE_SUBWAY_ACCESS`)은 클라이언트 신호 기반이라 우회 가능합니다. 과금·보상과 연결하려면 서버 검증이 필요합니다.
+- 위치기반 서비스이므로 **위치기반서비스사업 신고**(방송통신위원회) 대상 여부를 확인해야 합니다.
