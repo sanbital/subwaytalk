@@ -1,114 +1,119 @@
-# 같은 방향 · 베타 배포 (1단계: 테스터 데이터 연동)
+# 칙칙톡톡 · 같은 방향
 
-테스터들이 같은 라운지에서 주고받은 메시지·투표·광고 노출/클릭이 **공유 DB(Supabase)** 로 모이고,
-관리자·광고주 화면에서 실시간으로 집계가 보이도록 연결합니다.
+위치 기반 익명 지하철 라운지. 사용자가 이동 중인 노선·방향·역을 추론해 같은 이동 맥락의 라운지, 위치 광고, 상황별 음악 편성을 제공합니다.
 
-> 핵심: `config.js` 의 키를 채우면 **공유 모드**, 비우면 기존처럼 **브라우저별 로컬 모드**로 동작합니다.
+## 현재 구조
 
----
+운영 배포는 GitHub Pages 정적 배포를 유지하되, 세 화면이 **하나의 canonical bundle**을 사용합니다.
 
-## 폴더 구성 (서비스 분리)
-
-세 서비스가 독립된 경로로 분리돼 있습니다. 토글은 없앴고, 각자 자기 화면만 진입합니다.
-
-```
-deploy/
-├─ index.html        · 사용자 라운지        → /
-├─ app.js
-├─ config.js         · 공유 설정(키·접근코드)  ← 한 번만 채우면 3곳 모두 적용
-├─ admin/
-│   ├─ index.html    · 관리자(운영)          → /admin/   (접근코드)
-│   └─ app.js
-├─ advertiser/
-│   ├─ index.html    · 광고주 센터           → /advertiser/ (접근코드)
-│   └─ app.js
-├─ supabase_schema.sql
-└─ _redirects
-```
-
-- 사용자 페이지에는 관리자/광고주 진입 버튼이 없습니다. 운영자는 `/admin/`, 광고주는 `/advertiser/` 로 직접 접속합니다.
-- `config.js` 하나만 채우면(루트) 세 페이지가 같은 Supabase·접근코드를 공유합니다. (admin/advertiser 의 index.html 은 `../config.js` 를 불러옵니다.)
-- 접근 코드 기본값: 관리자 `ops2026`, 광고주 `ads2026` — `config.js`에서 변경하세요.
-
-> 나중에 도메인을 사면 `index.html`(루트)·`admin/`·`advertiser/` 를 각각 `lounge.` · `ops.` · `ads.` 도메인에 매핑하면 v0.4의 도메인 분리로 그대로 이어집니다.
-
-> ⚠️ 접근 코드는 정적 환경의 **임시 칸막이**입니다(코드가 브라우저로 내려가므로 강한 보안은 아님). 서버 역할 기반 권한 검증은 백엔드 단계에서 적용합니다.
-
----
-
-## 폴더 구성 (파일별)
-
-| 파일 | 설명 |
-|---|---|
-| `index.html` | 진입점 (config.js → app.js 순서로 로드) |
-| `app.js` | React + Supabase 포함 단일 번들 |
-| `config.js` | **여기에 Supabase 키를 입력** (공개 anon 키만) |
-| `supabase_schema.sql` | Supabase에 실행할 테이블/권한 SQL |
-| `_redirects` | Netlify용 (GitHub Pages에선 무시돼도 무방) |
-
----
-
-## 1. Supabase 프로젝트 만들기 (무료, 약 5분)
-
-1. https://supabase.com 가입 → **New project** 생성 (Region은 `Northeast Asia (Seoul)` 권장).
-2. 좌측 **SQL Editor** → `supabase_schema.sql` 내용을 붙여넣고 **Run**.
-3. 좌측 **Project Settings → API** 에서 두 값을 복사:
-   - **Project URL** → `SUPABASE_URL`
-   - **Project API keys → anon public** → `SUPABASE_ANON_KEY`
-
-> `service_role` 키는 절대 넣지 마세요. 프론트에는 공개해도 되는 `anon` 키만 사용합니다.
-
-## 2. 키 입력
-
-`config.js` 를 열어 두 값을 채웁니다.
-
-```js
-window.SAMEWAY_CONFIG = {
-  SUPABASE_URL: "https://xxxxxxxx.supabase.co",
-  SUPABASE_ANON_KEY: "eyJhbGciOi..."
-};
+```text
+/
+├─ index.html                  사용자 라운지
+├─ app.js                      canonical production bundle
+├─ config.js                   공개 Supabase 설정(anon key only)
+├─ stations.js                 수도권 역 좌표
+├─ src/
+│  └─ App.jsx                  canonical React source
+├─ runtime/
+│  ├─ storage-adapter.js       Subwaytalk 전용 상태 저장소
+│  ├─ location-engine.js       선로 구간 기반 위치·방향 판정
+│  ├─ location-ui.js           실제 위치 상태 UI
+│  ├─ ad-runtime.js            역/노선/반경 기반 광고
+│  ├─ music-runtime.js         위치·시간대·날씨 기반 음악 편성
+│  └─ route-bootstrap.js       /admin, /advertiser 화면 라우팅
+├─ admin/index.html            canonical app.js 재사용
+├─ advertiser/index.html       canonical app.js 재사용
+├─ supabase/migrations/        재현 가능한 DB 마이그레이션
+└─ scripts/validate-structure.mjs
 ```
 
-## 3. 배포 (GitHub Pages)
+`admin/app.js`, `advertiser/app.js`, 오래된 `lounge.html`, 루트 `lounge.jsx`, 과거 `supabase_schema.sql`은 더 이상 사용하지 않습니다.
 
-폴더 안 파일 전체(`index.html`, `app.js`, `config.js`, `supabase_schema.sql`, `_redirects`)를 저장소에 올립니다.
+## 위치 판정
+
+단순 최근접 역 판정이 아니라 사용자의 연속 위치를 **노선의 역-역 segment에 투영**합니다.
+
+- 이전 매칭 노선 연속성 가중
+- 환승역에서 순간적인 호선 점프 억제
+- 연속 segment 진행도 + 기기 heading으로 진행 방향 추론
+- 철도 물리 노선명을 승객용 호선명으로 정규화
+- 괄호형 부역명 제거 후 역 키 정규화
+- 신뢰도가 낮으면 광고/음악 위치 타기팅을 보류
+
+정확한 위도·경도는 Supabase에 저장하지 않습니다.
+
+## 광고
+
+광고는 `subway_ads`에서 가져옵니다. 노출 조건은 다음을 모두 통과해야 합니다.
+
+- station key 일치
+- line key가 지정된 캠페인은 line까지 일치
+- 위치 판정 confidence가 low가 아님
+- 캠페인 반경 안에 있음(기본 220m)
+- 동일 세션/역 중복 impression 방지
+
+광고 이벤트는 `subway_ad_events`에 coarse station/line, 익명 세션 해시, GPS 정확도와 역까지 거리만 기록합니다.
+
+## 음악 자동 편성
+
+`subway_music_rules`에서 현재 맥락과 가장 잘 맞는 YouTube/YouTube Music playlist를 고릅니다.
+
+우선순위 점수는 대략 `역 > 노선 > 날씨 > 시간대 > 편집 우선순위`입니다. 날씨는 사용자의 정확한 위치가 아니라 **판정된 역 좌표**로 Open-Meteo 현재 날씨를 조회합니다. 룰이 없으면 기본 편성으로 폴백합니다.
+
+관리자가 이후 `subway_music_rules`에 playlist와 다음 조건을 추가하면 앱 코드 수정 없이 편성을 확장할 수 있습니다.
+
+- `station_key`
+- `line_key`
+- `weather_tag`: clear / cloudy / rain / snow / storm / fog
+- `daypart`: dawn / morning / day / evening / night
+- `hashtags`
+- `priority`
+
+## 상태 저장소
+
+기존 프로젝트의 범용 `public.kv`는 더 이상 Subwaytalk 런타임 저장소로 사용하지 않습니다.
+
+Subwaytalk 상태는 `public.subway_runtime_state`로 이관되었습니다. 기존 `lounge:*`, `admin:*` 데이터는 마이그레이션 시 복사되며, 프론트에서는 `runtime/storage-adapter.js`가 기존 `window.storage` 인터페이스를 유지해 UI 회귀 없이 새 테이블을 사용합니다.
+
+네트워크 장애 시에는 브라우저 로컬 캐시로 폴백합니다.
+
+## Supabase 테이블
+
+Subwaytalk가 사용하는 전용 테이블은 다음과 같습니다.
+
+- `subway_runtime_state`
+- `subway_ads`
+- `subway_ad_events`
+- `subway_music_rules`
+
+모두 RLS를 사용합니다. 이 저장소의 Subwaytalk 마이그레이션은 같은 Supabase 프로젝트의 Idol Camp / scoreboard / meme 관련 테이블을 수정하지 않습니다.
+
+## 화면 경로
+
+- `/` 사용자 라운지
+- `/admin/` 운영 화면
+- `/advertiser/` 광고주 화면
+
+세 경로는 같은 `app.js`를 사용하고 `runtime/route-bootstrap.js`가 경로에 맞는 화면만 활성화합니다. 사용자 루트에서는 운영/광고주 모드 버튼을 숨깁니다.
+
+## 검증
 
 ```bash
-git add .
-git commit -m "beta: connect shared backend"
-git push
+npm run check
 ```
 
-저장소 **Settings → Pages → Branch: main / (root)** 저장. 1~2분 뒤 `https://<아이디>.github.io/<repo>/` 로 접속됩니다.
-HTTPS라 위치 동의 팝업도 정상 동작합니다.
+검사는 다음을 확인합니다.
 
-## 4. 동작 확인
+1. 모든 runtime JavaScript 문법
+2. 중복 admin/advertiser 번들이 존재하지 않는지
+3. 세 HTML 진입점이 canonical bundle/adapter를 참조하는지
+4. 운영에 필요한 runtime 파일 존재 여부
+5. `config.js`에 service-role secret이 들어가지 않았는지
 
-1. 폰과 PC에서 각각 라운지에 입장 → 한쪽에서 보낸 채팅이 다른 쪽에 뜨면 연동 성공.
-2. 광고 역(강변·건대입구)에 도착해 배너가 뜨면 → **관리자 → 역 도착 광고** 또는 **광고주 센터** 에서 노출 수가 올라갑니다.
-3. 배너의 매장 보기 클릭 → 클릭 수가 올라갑니다.
+GitHub Actions에서도 동일 검사를 실행합니다.
 
----
+## 보안 주의
 
-## 지금 연동되는 것 (1단계)
+`config.js`에는 **Supabase publishable/anon key만** 둘 수 있습니다. `service_role`은 절대 브라우저에 넣지 않습니다.
 
-- 테스터 간 **채팅 · 투표 · 좋아요 · 신고** 공유
-- **광고 노출/클릭 집계**가 관리자·광고주 화면에 실시간 반영
-- 위치 동의 → 가까운 역 기준 광고 노출 (앞서 구현)
-
-`ad_events` 테이블(노출/클릭 원장)도 함께 생성됩니다. 정확 집계·부정클릭 검증 등 다음 단계에서 사용합니다.
-
----
-
-## 아직 아닌 것 (v0.4 지시서 로드맵)
-
-아래는 별도 서버·인프라가 필요한 큰 작업입니다. 단계적으로 진행 권장:
-
-1. **서비스 분리 배포** — lounge / ads / ops 도메인·앱·인증 분리 (모노레포)
-2. **DB 분리** — Lounge / Advertising / Operations / Analytics 4개 + 이벤트 연동
-3. **광고주 청약·결제** — 캠페인 상태머신(DRAFT→…→RUNNING), PG 연동, KST 집행 예약, `집행하기` 게이트
-4. **지역 유동 단가 + 배분** — 페이싱 점수, 가중 랜덤, 유효 노출/클릭 검증
-5. **권한 기반 관리자** — 슈퍼/일반 어드민, 서버 권한 검증, 감사 로그
-6. **YouTube 임베드 음악** — 라운지 내 재생, 관리자 편성, 자동재생 폴백
-
-> 이 단계부터는 터미널/개발 환경에서 이어가는 것이 효율적입니다.
+현재 관리자/광고주 접근 코드는 기존 정적 UI 호환을 위해 남아 있습니다. 이것은 인증이 아니라 UI 게이트이므로, 실제 상용 광고주 계정·결제·관리자 권한을 붙일 때는 Supabase Auth + 역할 기반 RLS로 교체해야 합니다.
