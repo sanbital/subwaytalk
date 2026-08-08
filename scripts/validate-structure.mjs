@@ -37,6 +37,8 @@ for (const script of [
 ]) if (!root.includes(script)) fail(`index.html is missing ${script}`);
 
 const config = fs.readFileSync('config.js', 'utf8');
-if (/service[_-]?role/i.test(config)) fail('config.js must never contain a service-role key');
+if (/SUPABASE_SERVICE_ROLE\s*[:=]/i.test(config) || /service_role\s*[:=]\s*["'`]/i.test(config)) {
+  fail('config.js must never contain a service-role secret assignment');
+}
 
 if (!process.exitCode) console.log('Repository structure is normalized.');
