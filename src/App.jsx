@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 /* =========================================================================
-   같은 방향 — 위치기반 익명 지하철 라운지 (Alpha v0.2)
+   같은 방향 — 위치기반 익명 지하철 라운지 (Beta)
    테마: 통근의 빛 (쿨 라이트 배경 × 선셋 코랄 액센트)
    - 상단: 노선 위를 달리는 열차 + 흐르는 레일
    - 하차: 다음 역 접근 시 "○○역에서 내릴게요" 버튼이 직관적으로 강조
@@ -313,7 +313,6 @@ const DEFAULT_LINES = {
 const LINES = (typeof window!=="undefined" && window.SAMEWAY_LINES) || DEFAULT_LINES;
 const LINE_NAMES = Object.keys(LINES);
 const ALL_STATIONS = LINE_NAMES.flatMap(line => LINES[line].stations.map((s,idx)=>({ ...s, line, idx })));
-const DEMO_STATIONS = ["성수","건대입구","구의","강변","잠실나루"]; // 위치 거부 시 모의 모드 구간(2호선)
 function haversine(la1,lo1,la2,lo2){ const R=6371000,r=Math.PI/180;
   const dLa=(la2-la1)*r, dLo=(lo2-lo1)*r;
   const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
@@ -423,7 +422,7 @@ function useContextualPlaylist(){
    두 시스템이 서로 다른 역을 표시하는 일까지 있었다.
    여기서는 엔진을 켜고 첫 판정을 기다리기만 한다. 엔진은 지하에서도 응답하는
    저정밀 측위와 고정밀 GPS 를 함께 열어두므로 터널 안에서도 값이 들어온다. */
-function acquireFirstFix({ timeout = 20000 } = {}){
+function acquireFirstFix({ timeout = 15000 } = {}){
   return new Promise((resolve, reject)=>{
     const engine = typeof window!=="undefined" && window.SAMEWAY_LOCATION_ENGINE;
     if(!engine){ reject({ code:2 }); return; }
@@ -432,20 +431,23 @@ function acquireFirstFix({ timeout = 20000 } = {}){
     if(existing && existing.timestamp){ resolve(existing); return; }
 
     let settled = false;
-    const done = (state)=>{
-      if(settled) return; settled = true;
+    const cleanup = ()=>{
       clearTimeout(timer);
       window.removeEventListener("subway:location", onFix);
-      resolve(state);
+      window.removeEventListener("subway:location-error", onErr);
     };
-    const onFix = (e)=> done(e.detail);
+    const onFix = (e)=>{ if(settled) return; settled = true; cleanup(); resolve(e.detail); };
+    // 권한 거부는 기다릴 이유가 없다. 타임아웃까지 "확인 중"을 띄우지 않고 바로 안내한다.
+    const onErr = (e)=>{
+      if(settled || !(e.detail && e.detail.denied)) return;
+      settled = true; cleanup(); reject({ code:1 });
+    };
     const timer = setTimeout(()=>{
-      if(settled) return; settled = true;
-      window.removeEventListener("subway:location", onFix);
-      reject({ code:3 });
+      if(settled) return; settled = true; cleanup(); reject({ code:3 });
     }, timeout);
 
     window.addEventListener("subway:location", onFix);
+    window.addEventListener("subway:location-error", onErr);
     try{ engine.start(); }catch{}
   });
 }
@@ -587,24 +589,18 @@ function LoungeApp(){
   const [showResult, setShowResult] = useState(false);
   const [adClosed, setAdClosed] = useState(false);
   const [activeAd, setActiveAd] = useState(null);
-  const [locMode, setLocMode] = useState("pending"); // pending | mock | real
+  // 베타는 실제 GPS 전용이다. 위치를 못 잡으면 가짜 주행을 보여주지 않고 대기 화면에 머문다.
+  const [locStatus, setLocStatus] = useState("acquiring"); // acquiring | ready | denied | unavailable
+  const [matchSlow, setMatchSlow] = useState(false);
   const [nearest, setNearest] = useState(null);      // {name,idx,distM}
   const [geoErr, setGeoErr] = useState("");
   const [musicOff, setMusicOff] = useState(false);
   const contextualMusic = useContextualPlaylist();
 
-  // 열차 진행
-  const [seg, setSeg] = useState(1);      // 출발역 index
-  const [prog, setProg] = useState(0.15); // 구간 내 진행 0~1
-  const [arriving, setArriving] = useState(false);
-  const arrLock = useRef(false);
   const goneRef = useRef(false);
   const feedRef = useRef(null);
 
   const card = cards[cardIdx] || cards[0];
-  const fromStn = DEMO_STATIONS[seg];
-  const toStn = DEMO_STATIONS[Math.min(DEMO_STATIONS.length-1, seg+1)];
-  const trainPos = (seg + prog) / (DEMO_STATIONS.length-1) * 100;
   const adSeenRef = useRef("");
 
   // 엔진 판정(노선/역/방향)을 헤더가 쓰는 형태로 옮긴다.
@@ -620,7 +616,6 @@ function LoungeApp(){
       idx: hit.idx,
       distM: state.distanceToStation == null ? 0 : state.distanceToStation
     });
-    setSeg(hit.idx); setProg(0.02);
   },[]);
 
   const startMatch = async () => {
@@ -629,27 +624,32 @@ function LoungeApp(){
     if(loaded && loaded.length) setCards(loaded);
     const la = await sget(K.ads, null);
     if(la && la.length) setAds(la);
+    setLocStatus("acquiring"); setGeoErr(""); setMatchSlow(false);
+    const slowTimer = setTimeout(()=>setMatchSlow(true), 6000);
     try{
       const fix = await acquireFirstFix();
-      setLocMode("real"); applyFix(fix); setGeoErr("");
+      clearTimeout(slowTimer);
+      applyFix(fix); setLocStatus("ready");
       setTimeout(()=>setScreen("lounge"), 900);
     }catch(err){
-      setLocMode("mock");
+      clearTimeout(slowTimer);
+      // 실제 이동 맥락이 없으면 라운지에 넣지 않는다. 같은 방향 매칭이 성립하지 않기 때문이다.
+      setLocStatus(err && err.code===1 ? "denied" : "unavailable");
       setGeoErr(err && err.code===1
-        ? "위치 권한이 꺼져 있어 체험 모드로 시작해요. 설정에서 허용하면 같은 방향 라운지에 연결됩니다."
-        : "아직 위치를 잡지 못해 체험 모드로 시작해요. 신호가 잡히면 자동으로 전환됩니다.");
-      setTimeout(()=>setScreen("lounge"), 1200);
+        ? "위치 권한이 꺼져 있어요. 브라우저·기기 설정에서 위치 접근을 허용하면 같은 방향 라운지로 들어갈 수 있어요."
+        : "아직 위치를 잡지 못했어요. 승강장이나 열차 안에서는 잠시 걸릴 수 있어요.");
+      setScreen("nogps");
     }
   };
 
-  // 엔진 판정 구독. 체험 모드로 시작했더라도 신호가 잡히면 실제 모드로 승격한다.
+  // 엔진 판정 구독. 대기 화면에 있더라도 신호가 잡히는 순간 라운지로 들여보낸다.
   // (터널 출발 → 지상 구간 진입, 역사 와이파이 접속 등)
   useEffect(()=>{
-    if(screen!=="lounge") return;
+    if(screen!=="lounge" && screen!=="nogps") return;
     const onFix = (e)=>{
       applyFix(e.detail);
-      setLocMode((m)=> m==="real" ? m : "real");
-      setGeoErr("");
+      setLocStatus("ready"); setGeoErr("");
+      setScreen((cur)=> cur==="nogps" ? "lounge" : cur);
     };
     window.addEventListener("subway:location", onFix);
     return ()=> window.removeEventListener("subway:location", onFix);
@@ -672,45 +672,17 @@ function LoungeApp(){
     return ()=>{ alive=false; clearInterval(t); };
   },[screen, sid]);
 
-  // 열차 모션 (모의 모드)
-  useEffect(()=>{
-    if(screen!=="lounge" || locMode!=="mock") return;
-    const t = setInterval(()=>{
-      if(arrLock.current) return;
-      setProg(p=>{
-        const np = +(p+0.05).toFixed(3);
-        if(np>=1){
-          arrLock.current = true; setArriving(true);
-          setTimeout(()=>{ setSeg(s=> s>=DEMO_STATIONS.length-2?0:s+1); setProg(0.02); setArriving(false); arrLock.current=false; }, 1600);
-          return 1;
-        }
-        return np;
-      });
-    }, 230);
-    return ()=>clearInterval(t);
-  },[screen, locMode]);
-
   useEffect(()=>{ if(feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; },[messages.length]);
-
-  // 역 도착 시 광고 활성화 (모의 모드, 닫기 전까지 유지)
-  useEffect(()=>{
-    if(screen!=="lounge" || locMode!=="mock" || !arriving) return;
-    const ad = ads.find(a=>a.active!==false && a.station===toStn);
-    if(ad && adSeenRef.current !== ad.id+seg){
-      adSeenRef.current = ad.id+seg;
-      setActiveAd(ad); setAdClosed(false);
-    }
-  },[arriving, locMode]);
 
   // 실위치 광고 활성화 (가장 가까운 역 1.5km 이내)
   useEffect(()=>{
-    if(screen!=="lounge" || locMode!=="real" || !nearest) return;
+    if(screen!=="lounge" || !nearest) return;
     const ad = ads.find(a=>a.active!==false && a.station===nearest.name);
     if(ad && nearest.distM < 1500 && adSeenRef.current !== ad.id+"R"+nearest.name){
       adSeenRef.current = ad.id+"R"+nearest.name;
       setActiveAd(ad); setAdClosed(false);
     }
-  },[nearest, locMode]);
+  },[nearest]);
 
   // 노출/클릭 집계는 runtime/ad-runtime.js → subway-ad-event 함수가 담당한다.
   // 클라이언트가 카운터를 직접 증가시키던 경로는 위조가 가능해 제거했다.
@@ -793,9 +765,28 @@ function LoungeApp(){
           <a onClick={()=>alert("위치정보 수집·이용 동의 상세 (준비 중)")}>동의 상세</a>
           <a onClick={()=>alert("위치정보 수집·이용 중지: 기기 설정 또는 앱 권한에서 언제든 해제할 수 있어요.")}>수집·이용 중지</a>
         </div>
-        <div className="alt"><button onClick={()=>{ setLocMode("mock"); setScreen("match"); setTimeout(()=>setScreen("lounge"),1600); }}>위치 없이 체험 라운지 둘러보기 →</button></div>
+        <div className="alt"><span className="faint">실제 이동 중인 위치로만 라운지가 열립니다.</span></div>
       </div>
     </div>
+  );
+
+  // 위치를 못 잡으면 가짜 주행을 보여주는 대신 여기서 기다린다.
+  // 같은 방향 매칭은 실제 이동 맥락 없이는 성립하지 않기 때문이다.
+  if(screen==="nogps") return (
+    <div className="scr"><div className="center">
+      <div className="ill" style={{fontSize:44,textAlign:"center"}}>🛰️</div>
+      <h1 style={{fontSize:21,fontWeight:800,margin:"14px 0 8px",lineHeight:1.45,textAlign:"center"}}>
+        {locStatus==="denied" ? "위치 권한이 필요해요" : "위치를 찾고 있어요"}
+      </h1>
+      <p className="muted" style={{fontSize:13.5,lineHeight:1.7,textAlign:"center"}}>{geoErr}</p>
+      <p className="faint" style={{fontSize:12,lineHeight:1.7,textAlign:"center",marginTop:4}}>
+        {locStatus==="denied"
+          ? "권한을 허용한 뒤 다시 시도를 눌러주세요."
+          : "신호가 잡히면 자동으로 라운지에 들어갑니다."}
+      </p>
+      <button className="btn" style={{marginTop:20}} onClick={startMatch}>다시 시도</button>
+      <button className="btn ghost" style={{marginTop:8}} onClick={()=>setScreen("perm")}>처음으로</button>
+    </div></div>
   );
 
   if(screen==="match") return (
@@ -808,57 +799,57 @@ function LoungeApp(){
         <div className="train"><TrainMark size={56}/></div>
       </div>
       <p className="muted" style={{fontSize:13.5}}>현재 위치와 방향을 분석하는 중이에요.</p>
+      {/* 지하에서는 첫 측위가 늦다. 말없이 기다리게 두지 않는다. */}
+      {matchSlow && <p className="faint" style={{fontSize:12,lineHeight:1.7,marginTop:6}}>
+        지하 구간에서는 첫 위치를 잡는 데 조금 더 걸릴 수 있어요.
+      </p>}
     </div></div>
   );
 
   if(screen==="end") return (
     <div className="scr"><div className="end">
       <div className="ill">✓</div>
-      <div className="big">{toStn}역에 도착했어요.</div>
+      <div className="big">{nearest ? `${nearest.name}역에 도착했어요.` : "이번 이동을 마쳤어요."}</div>
       <div className="sub">이 라운지에서 남긴 말은 사라졌어요.<br/>오늘도 이동하느라 수고했어요.</div>
       <a className="pl" href={card.playlist.url} target="_blank" rel="noreferrer" style={{marginTop:8,width:"100%",maxWidth:300}}>
         <div className="ico">♫</div><div className="t"><div className="a">오늘의 플레이리스트 다시 듣기</div><div className="b">{card.playlist.title}</div></div></a>
-      <button className="btn ghost" style={{maxWidth:300,marginTop:4}} onClick={()=>{ goneRef.current=false; setSeg(1); setProg(0.15); setScreen("perm"); }}>홈으로</button>
+      <button className="btn ghost" style={{maxWidth:300,marginTop:4}} onClick={()=>{ goneRef.current=false; setScreen("perm"); }}>홈으로</button>
     </div></div>
   );
 
-  const isReal = locMode==="real";
-  // 헤더에 표시할 역 윈도우 (실위치: 가까운 역이 속한 노선의 앞뒤 ±2역 / 모의: 데모 구간)
-  let railNames, railCur, railLine;
-  if(isReal && nearest){
-    const ls = (LINES[nearest.line] && LINES[nearest.line].stations) || [];
-    const w=2, s0=Math.max(0,nearest.idx-w), e0=Math.min(ls.length,nearest.idx+w+1);
-    railNames = ls.slice(s0,e0).map(x=>x.n); railCur = nearest.idx-s0; railLine = nearest.line;
-  } else {
-    railNames = DEMO_STATIONS; railCur = seg; railLine = "2호선";
-  }
+  // 헤더에 표시할 역 윈도우: 실제로 매칭된 역 기준 앞뒤 ±2역.
+  const railStations = (nearest && LINES[nearest.line] && LINES[nearest.line].stations) || [];
+  const railFrom = nearest ? Math.max(0, nearest.idx-2) : 0;
+  const railNames = nearest ? railStations.slice(railFrom, Math.min(railStations.length, nearest.idx+3)).map(x=>x.n) : [];
+  const railCur = nearest ? nearest.idx - railFrom : 0;
+  const railLine = nearest ? nearest.line : "";
   const railLen = Math.max(1, railNames.length-1);
-  const posPct = isReal ? (railCur/railLen*100) : trainPos;
-  const passedTo = isReal ? railCur : (seg+prog);
-  const arrNow = isReal ? (nearest && nearest.distM < 300) : arriving;
-  const headTitle = isReal
-    ? (nearest ? (arrNow ? `${nearest.name}역 도착` : `${nearest.name}역 부근`) : "위치 확인 중")
-    : (arriving ? `곧 ${toStn}역 도착` : "2호선 외선 이동 중");
+  const posPct = railCur/railLen*100;
+  const arrNow = !!(nearest && nearest.distM < 300);
+  const nextStn = (typeof window!=="undefined" && window.SAMEWAY_LOCATION_STATE && window.SAMEWAY_LOCATION_STATE.nextStation) || null;
+  const headTitle = nearest
+    ? (arrNow ? `${nearest.name}역 도착` : `${nearest.name}역 부근`)
+    : "위치 확인 중";
 
   return (
     <div className="scr">
       <div className={"lh"+(arrNow?" arr":"")}>
         <div className="row1"><span className="ico" style={{display:"inline-flex",alignItems:"center"}}><TrainMark size={19} color={arrNow?"#0A8F77":"#16C7A6"}/></span>
           {headTitle}
-          <span className="cnt">{isReal ? `함께 이동 중 ${count}명` : "체험 모드"}</span></div>
-        {!isReal && geoErr && <div className="geonotice">{geoErr}</div>}
+          <span className="cnt">함께 이동 중 {count}명</span></div>
+        {geoErr && <div className="geonotice">{geoErr}</div>}
         <div className="track">
           <div className="base"/>
           <div className="fill" style={{width:`${posPct}%`}}/>
           {railNames.map((_,i)=>{
             const left = i/railLen*100;
-            return <div key={i} className={"stop"+(passedTo>=i?" passed":"")} style={{left:`calc(${left}% )`}}/>;
+            return <div key={i} className={"stop"+(railCur>=i?" passed":"")} style={{left:`calc(${left}% )`}}/>;
           })}
           <div className="train" style={{left:`${posPct}%`}}><TrainMark size={30}/></div>
         </div>
         <div className="stn">
-          <span className="from">{isReal ? `📍 ${railLine}` : fromStn}</span>
-          <span className="to">{isReal ? (nearest ? `${nearest.distM.toLocaleString()}m` : "측정 중") : (arriving?`${toStn} 도착`:`다음 · ${toStn}`)}</span>
+          <span className="from">📍 {railLine}</span>
+          <span className="to">{nextStn ? `${nextStn} 방면` : (nearest ? `${nearest.distM.toLocaleString()}m` : "측정 중")}</span>
         </div>
       </div>
 
@@ -907,9 +898,9 @@ function LoungeApp(){
 
         {(()=>{ const src = parseYT((contextualMusic && contextualMusic.playlistUrl) || card.playlist.url);
           const theme = (contextualMusic && contextualMusic.playlistTitle)
-            || (isReal && nearest
+            || (nearest
               ? `${nearest.line} ${nearest.name} 부근 추천 음악`
-              : `${DEMO_STATIONS[Math.max(0,seg)]}~${DEMO_STATIONS[Math.min(DEMO_STATIONS.length-1,seg+1)]} 이동 중 추천 음악`);
+              : "이동 중 추천 음악");
           if(!src) return (
             <div className="music"><div className="offrow"><span>🎵 등록된 재생용 유튜브 편성이 없어요</span></div></div>
           );
@@ -939,8 +930,8 @@ function LoungeApp(){
       <div className="comp">
         {warn && <div className="warn-line">{warn}</div>}
         <div className="getoff-wrap">
-          <button className={"getoff"+(arriving?" hot":"")} onClick={getOff}>
-            {arriving ? `🚉 ${toStn}역에서 내릴게요` : "여기서 내릴게요"}
+          <button className={"getoff"+(arrNow?" hot":"")} onClick={getOff}>
+            {arrNow && nearest ? `🚉 ${nearest.name}역에서 내릴게요` : "여기서 내릴게요"}
           </button>
         </div>
         <div className="nk">
@@ -1277,7 +1268,7 @@ export default function App(){
     <div className="lg-root">
       <style>{CSS}</style>
       <div className="lg-topbar">
-        <span className="brand"><b>●</b> 같은 방향 · Alpha v0.2</span>
+        <span className="brand"><b>●</b> 같은 방향 · Beta</span>
         <button className={mode==="app"?"on":""} onClick={()=>setMode("app")}>사용자 앱</button>
         <button className={mode==="adv"?"on":""} onClick={()=>setMode("adv")}>광고주</button>
         <button className={mode==="admin"?"on":""} onClick={()=>setMode("admin")}>관리자</button>

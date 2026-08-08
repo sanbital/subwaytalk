@@ -104,7 +104,7 @@
   var state={version:VERSION,line:null,sourceLine:null,stationKey:null,nextStation:null,direction:0,
     directionLabel:'방향 분석 중',distanceToStation:null,accuracy:null,routeDistance:null,
     confidence:'low',arrived:false,timestamp:0};
-  var previous=null,history=[],votes=[],watchIds=[],started=false;
+  var previous=null,history=[],votes=[],watchIds=[],started=false,denied=false;
   window.SAMEWAY_LOCATION_STATE=state;
 
   function nearestStation(sourceLine,lat,lng){
@@ -200,16 +200,28 @@
   //   · 저정밀(와이파이/기지국) — 터널 안에서 실제로 응답하는 경로
   //   · 고정밀(GPS) — 지상 구간에서 더 정확한 좌표
   // analyze() 는 accuracy 를 반영해 confidence 를 계산하므로 둘을 섞어 받아도 안전하다.
+  // 오류를 조용히 삼키면 권한이 꺼져 있어도 UI 가 "확인 중"에 갇힌다.
+  // 실패를 이벤트로 알려서 앱이 즉시 안내 화면으로 넘어갈 수 있게 한다.
+  function reportError(err){
+    var code=err&&err.code;
+    if(code===1)denied=true;
+    try{
+      window.dispatchEvent(new CustomEvent('subway:location-error',{
+        detail:{code:code,denied:denied,message:(err&&err.message)||''}
+      }));
+    }catch(_){ }
+  }
+
   function start(){
-    if(started||!navigator.geolocation)return;started=true;
+    if(started||!navigator.geolocation)return;started=true;denied=false;
     try{
-      watchIds.push(navigator.geolocation.watchPosition(analyze,function(){},
+      watchIds.push(navigator.geolocation.watchPosition(analyze,reportError,
         {enableHighAccuracy:false,maximumAge:30000,timeout:30000}));
-    }catch(_){ }
+    }catch(_){ reportError({code:2}); }
     try{
-      watchIds.push(navigator.geolocation.watchPosition(analyze,function(){},
+      watchIds.push(navigator.geolocation.watchPosition(analyze,reportError,
         {enableHighAccuracy:true,maximumAge:10000,timeout:30000}));
-    }catch(_){ }
+    }catch(_){ reportError({code:2}); }
   }
   function stop(){
     if(navigator.geolocation){

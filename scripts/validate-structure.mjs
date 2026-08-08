@@ -71,6 +71,11 @@ if (!/<Gate[\s\S]*<Admin\s*\/>/.test(appSource)) fail('Admin console must be wra
 if (!/<Gate[\s\S]*<Advertiser\s*\/>/.test(appSource)) fail('Advertiser console must be wrapped in <Gate>');
 // 브라우저에서 모델 API 를 직접 부르면 키가 노출되거나(있을 때) 필터가 꺼진다(없을 때).
 if (appSource.includes('api.anthropic.com')) fail('src/App.jsx must not call a model API directly from the browser');
+// 베타는 실제 GPS 전용이다. 위치를 못 잡았을 때 가짜 주행으로 대체하면 안 된다.
+for (const token of ['DEMO_STATIONS', '체험 모드', '체험 라운지', '모의 모드']) {
+  if (appSource.includes(token)) fail(`src/App.jsx must not fall back to simulated movement (found "${token}")`);
+}
+if (!appSource.includes('screen==="nogps"')) fail('src/App.jsx must show a location-required screen instead of a simulated lounge');
 
 // 접근 코드와 서비스 키는 클라이언트 설정 파일에 있으면 안 된다.
 const config = read('config.js');
