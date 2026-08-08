@@ -13,6 +13,10 @@ window.SAMEWAY_CONFIG = {
   SUPABASE_URL: "https://kkaoerbblpuszptiibvo.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_tPjuKan5uDF2LwGVV8DFJQ_vdiBaFAG",
 
+  // 테스트 기간: false면 탑승 판정은 계속 수집/표시하지만 접근은 차단하지 않습니다.
+  // 정식 운영 전 true로 전환하면 실제 지하철 탑승이 확인된 경우에만 라운지를 허용합니다.
+  ENFORCE_SUBWAY_ACCESS: false,
+
   // 관리자/광고주 페이지 접근 코드 (임시 보호). 바꿔서 쓰세요.
   ADMIN_CODE: "muniverse",
   ADV_CODE: "123"
