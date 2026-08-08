@@ -13,7 +13,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const URL_ = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") || "";
-const SECRET = Deno.env.get("SUBWAY_CHAT_SECRET") || "";
+// 서명 키. SUBWAY_CHAT_SECRET 을 설정하는 것이 원칙이지만, 없을 때는
+// 서버에만 존재하는 service_role 키에서 파생시킨다(브라우저로 나가지 않는 고엔트로피 값).
+// 이렇게 두면 시크릿 설정을 잊어도 대화가 통째로 멈추지 않으면서 토큰 위조는 여전히 불가능하다.
+const SECRET = Deno.env.get("SUBWAY_CHAT_SECRET") || (SERVICE ? `derived-chat|${SERVICE}` : "");
 
 const cors = {
   "Access-Control-Allow-Origin": "*",

@@ -10,7 +10,9 @@ const URL_ = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const ADMIN_CODE = Deno.env.get("SUBWAY_ADMIN_CODE") || "";
 const ADV_CODE = Deno.env.get("SUBWAY_ADV_CODE") || "";
-const SECRET = Deno.env.get("SUBWAY_ADMIN_SECRET") || "";
+// 토큰 서명 키. 미설정 시 서버 전용 service_role 키에서 파생한다.
+// (접근 코드 자체는 파생할 수 없으므로, 코드가 없으면 로그인은 계속 차단된다.)
+const SECRET = Deno.env.get("SUBWAY_ADMIN_SECRET") || (SERVICE ? `derived-admin|${SERVICE}` : "");
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
