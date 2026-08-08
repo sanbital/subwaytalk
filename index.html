@@ -14,8 +14,10 @@
 <div id="root"></div>
 <script src="./config.js"></script>
 <script src="./stations.js"></script>
-<!-- v3 compatibility/runtime layer: route matching, direction inference, accurate geo ads -->
-<script src="./runtime/subway-runtime-v3.js" defer></script>
+<!-- v3 compatibility layer: normalized location + UI + geo-targeted ads -->
+<script src="./runtime/location-engine.js" defer></script>
+<script src="./runtime/location-ui.js" defer></script>
+<script src="./runtime/ad-runtime.js" defer></script>
 <script src="./app.js" defer></script>
 </body>
 </html>
