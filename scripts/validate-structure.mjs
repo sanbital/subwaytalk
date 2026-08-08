@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const fail = (message) => { console.error(`STRUCTURE ERROR: ${message}`); process.exitCode = 1; };
 const mustExist = [
   'app.js',
+  'src/App.jsx',
   'runtime/storage-adapter.js',
   'runtime/location-engine.js',
   'runtime/location-ui.js',
@@ -14,8 +15,8 @@ const mustExist = [
 ];
 for (const path of mustExist) if (!fs.existsSync(path)) fail(`${path} is missing`);
 
-for (const path of ['admin/app.js', 'advertiser/app.js']) {
-  if (fs.existsSync(path)) fail(`${path} must not exist; subroutes use the canonical root bundle`);
+for (const path of ['admin/app.js', 'advertiser/app.js', 'lounge.html', 'lounge.jsx', 'supabase_schema.sql']) {
+  if (fs.existsSync(path)) fail(`${path} is obsolete and must not exist`);
 }
 
 for (const path of ['admin/index.html', 'advertiser/index.html']) {
