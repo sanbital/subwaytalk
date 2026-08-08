@@ -1,9 +1,11 @@
 (function(){
   'use strict';
+  var cfg=window.SAMEWAY_CONFIG||{};
+  var enforce=cfg.ENFORCE_SUBWAY_ACCESS===true;
   var samples=[],verifiedAt=0,bad=0;
-  var state={status:'checking',score:0,reason:'탑승 확인 중',estimatedSpeedMps:0,updatedAt:0};
+  var state={status:'checking',score:0,reason:'탑승 확인 중',estimatedSpeedMps:0,updatedAt:0,enforced:enforce};
   window.SAMEWAY_ACCESS_STATE=state;
-  function emit(next){state=next;window.SAMEWAY_ACCESS_STATE=state;try{window.dispatchEvent(new CustomEvent('subway:access',{detail:state}));}catch(_){}}
+  function emit(next){next.enforced=enforce;state=next;window.SAMEWAY_ACCESS_STATE=state;try{window.dispatchEvent(new CustomEvent('subway:access',{detail:state}));}catch(_){}}
   function evaluate(loc){
     if(!loc||!loc.timestamp)return;
     var prev=samples.length?samples[samples.length-1]:null;
@@ -31,11 +33,12 @@
   function render(){
     var phone=document.querySelector('.phone'),perm=document.querySelector('.perm-screen'),match=document.querySelector('.match-stage');if(!phone||perm||match)return;
     var el=document.getElementById('sameway-access-gate');
+    if(!enforce){if(el)el.remove();return;}
     if(state.status==='verified'||state.status==='provisional'){if(el)el.remove();return;}
     if(!el){el=document.createElement('div');el.id='sameway-access-gate';el.style.cssText='position:absolute;inset:0;z-index:80;background:rgba(234,237,241,.97);display:flex;align-items:center;justify-content:center;padding:24px';phone.appendChild(el);}
     el.innerHTML='<div style="max-width:330px;background:#fff;border:1px solid #E1E5EB;border-radius:22px;padding:24px;text-align:center;box-shadow:0 14px 40px rgba(20,30,48,.12)"><div style="font-size:32px">🚇</div><div style="font-size:18px;font-weight:900;margin-top:10px">'+(state.status==='blocked'?'지하철에 탑승하면 열려요':'탑승 확인 중')+'</div><div style="font-size:13px;color:#727A86;line-height:1.6;margin-top:8px">'+state.reason+'<br/>선로·이동방향·속도 패턴을 함께 확인합니다.</div><div style="margin-top:14px;font-size:11px;color:#A4ABB6">정확한 위치는 서버에 저장하지 않아요.</div></div>';
   }
   window.addEventListener('subway:location',function(e){evaluate(e.detail);render();});window.addEventListener('subway:access',render);
   new MutationObserver(render).observe(document.documentElement,{childList:true,subtree:true});
-  window.SAMEWAY_COMMUTE_ACCESS={version:'4.0.0',getState:function(){return state;},evaluate:evaluate};
+  window.SAMEWAY_COMMUTE_ACCESS={version:'4.0.1-test-open',enforced:enforce,getState:function(){return state;},evaluate:evaluate};
 })();
