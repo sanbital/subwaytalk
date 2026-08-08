@@ -3,7 +3,7 @@
   var cfg=window.SAMEWAY_CONFIG||{},ads=[],current=null,dismissed=null,queued=false;
   var session=(function(){try{var k='subway:v3:session',v=sessionStorage.getItem(k);if(!v){v='s_'+Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem(k,v);}return v;}catch(_){return 's_'+Date.now().toString(36);}})();
   function key(v){return window.SAMEWAY_LOCATION_ENGINE?window.SAMEWAY_LOCATION_ENGINE.stationKey(v):String(v||'').replace(/\([^)]*\)/g,'').trim();}
-  function headers(extra){var h={apikey:cfg.SUPABASE_ANON_KEY,Accept:'application/json'};if(extra)Object.keys(extra).forEach(function(k){h[k]=extra[k];});return h;}
+  function headers(extra){var h={apikey:cfg.SUPABASE_ANON_KEY,Authorization:'Bearer '+cfg.SUPABASE_ANON_KEY,Accept:'application/json'};if(extra)Object.keys(extra).forEach(function(k){h[k]=extra[k];});return h;}
   async function hash(v){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join('').slice(0,40);}catch(_){return ('00000000'+Math.abs(v.split('').reduce(function(a,c){return ((a<<5)-a)+c.charCodeAt(0)|0;},0)).toString(16)).slice(-8).repeat(4);}}
   async function load(){
     if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY)return;
@@ -27,12 +27,16 @@
   function seenKey(a,st){return 'subway:v3:adseen:'+a.id+':'+st.stationKey;}
   function seen(a,st){try{return sessionStorage.getItem(seenKey(a,st))==='1';}catch(_){return false;}}
   function markSeen(a,st){try{sessionStorage.setItem(seenKey(a,st),'1');}catch(_){ }}
+  // 노출/클릭은 subway-ad-event 함수를 통해서만 기록한다.
+  // 브라우저가 테이블에 직접 INSERT 하던 시절에는 curl 반복만으로 광고 성과를 위조할 수 있었다.
+  // 이제 캠페인 실재 여부·타겟 일치·세션당 빈도를 서버가 검증한다.
   async function event(type,a,st){
     if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY)return;
     try{
       var sh=await hash(session);
-      await fetch(cfg.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/subway_ad_events',{
-        method:'POST',headers:headers({'Content-Type':'application/json','Prefer':'return=minimal'}),
+      await fetch(cfg.SUPABASE_URL.replace(/\/$/,'')+'/functions/v1/subway-ad-event',{
+        method:'POST',
+        headers:headers({'Content-Type':'application/json'}),
         body:JSON.stringify({event_type:type,ad_id:a.id,station_key:st.stationKey,line_key:st.line,session_hash:sh,accuracy_m:st.accuracy,distance_m:st.distanceToStation})
       });
     }catch(_){ }

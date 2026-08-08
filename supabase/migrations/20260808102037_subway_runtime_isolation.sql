@@ -28,10 +28,17 @@ revoke all on table public.subway_runtime_state from anon, authenticated;
 grant select, insert, update, delete on table public.subway_runtime_state to anon, authenticated;
 create index if not exists subway_runtime_state_updated_idx on public.subway_runtime_state(updated_at desc);
 
-insert into public.subway_runtime_state(key,value)
-select key,value from public.kv
-where key like 'lounge:%' or key like 'admin:%'
-on conflict (key) do nothing;
+-- 기존 공유 kv 테이블이 있는 프로젝트에서만 값을 옮겨온다.
+-- (예전 버전은 public.kv 존재를 전제해서 새 프로젝트/브랜치에서는 마이그레이션 자체가 깨졌다.)
+do $$
+begin
+  if to_regclass('public.kv') is not null then
+    insert into public.subway_runtime_state(key,value)
+    select key,value from public.kv
+    where key like 'lounge:%' or key like 'admin:%'
+    on conflict (key) do nothing;
+  end if;
+end $$;
 
 insert into public.subway_music_rules (title, playlist_url, hashtags, priority, enabled)
 select '같은 방향 기본 편성',
