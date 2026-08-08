@@ -117,6 +117,7 @@
       if(!best)return;
       m={sourceLine:best.x.sourceLine,line:best.x.line,aIdx:best.x.idx,bIdx:best.x.idx,a:best.x.st,b:best.x.st,t:0,dist:best.d,score:best.d};
     }
+    if(previous&&previous.sourceLine!==m.sourceLine){history=[];votes=[];}
     var near=nearestStation(m.sourceLine,lat,lng),dir=directionFor(m,c),next=nextFor(m,near,dir);
     var arrivalRadius=clamp(Math.round(90+accuracy*.8),120,350),routeLimit=Math.max(220,accuracy*2.2);
     state={
@@ -140,7 +141,6 @@
     var t=e.target;
     if(t&&t.closest&&t.closest('.perm-sheet .cta'))start();
   },true);
-  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')stop();});
 
   window.SAMEWAY_LOCATION_ENGINE={version:VERSION,start:start,stop:stop,analyze:analyze,getState:function(){return window.SAMEWAY_LOCATION_STATE;},stationKey:stationKey,lineKey:lineKey};
 })();
