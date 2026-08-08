@@ -1,13 +1,13 @@
 {
   "name": "subwaytalk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
-    "check:runtime": "node --check runtime/storage-adapter.js && node --check runtime/location-engine.js && node --check runtime/location-ui.js && node --check runtime/ad-runtime.js && node --check runtime/music-runtime.js && node --check runtime/route-bootstrap.js",
+    "check:runtime": "node --check runtime/storage-adapter.js && node --check runtime/location-engine.js && node --check runtime/commute-access.js && node --check runtime/location-ui.js && node --check runtime/ad-runtime.js && node --check runtime/music-runtime.js && node --check runtime/social-play.js && node --check runtime/sticker-picker-fix.js && node --check runtime/instant-chat.js && node --check runtime/chat-safety.js && node --check runtime/route-bootstrap.js",
     "check:structure": "node scripts/validate-structure.mjs",
     "check": "npm run check:runtime && npm run check:structure"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }

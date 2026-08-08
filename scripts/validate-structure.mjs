@@ -6,10 +6,17 @@ const mustExist = [
   'src/App.jsx',
   'runtime/storage-adapter.js',
   'runtime/location-engine.js',
+  'runtime/commute-access.js',
   'runtime/location-ui.js',
   'runtime/ad-runtime.js',
   'runtime/music-runtime.js',
+  'runtime/social-play.js',
+  'runtime/sticker-picker-fix.js',
+  'runtime/instant-chat.js',
+  'runtime/chat-safety.js',
   'runtime/route-bootstrap.js',
+  'supabase/functions/subway-message/index.ts',
+  'supabase/migrations/20260808_subway_commute_play_v1.sql',
   'admin/index.html',
   'advertiser/index.html'
 ];
@@ -28,17 +35,18 @@ for (const path of ['admin/index.html', 'advertiser/index.html']) {
 
 const root = fs.readFileSync('index.html', 'utf8');
 for (const script of [
-  './runtime/storage-adapter.js',
-  './runtime/location-engine.js',
-  './runtime/location-ui.js',
-  './runtime/ad-runtime.js',
-  './runtime/music-runtime.js',
-  './runtime/route-bootstrap.js'
+  './runtime/storage-adapter.js', './runtime/location-engine.js', './runtime/commute-access.js',
+  './runtime/location-ui.js', './runtime/ad-runtime.js', './runtime/music-runtime.js',
+  './runtime/social-play.js', './runtime/sticker-picker-fix.js', './runtime/instant-chat.js',
+  './runtime/chat-safety.js', './runtime/route-bootstrap.js'
 ]) if (!root.includes(script)) fail(`index.html is missing ${script}`);
 
 const config = fs.readFileSync('config.js', 'utf8');
-if (/SUPABASE_SERVICE_ROLE\s*[:=]/i.test(config) || /service_role\s*[:=]\s*["'`]/i.test(config)) {
-  fail('config.js must never contain a service-role secret assignment');
-}
+if (/SUPABASE_SERVICE_ROLE\s*[:=]/i.test(config) || /service_role\s*[:=]\s*["'`]/i.test(config)) fail('config.js must never contain a service-role secret assignment');
 
-if (!process.exitCode) console.log('Repository structure is normalized.');
+const chat = fs.readFileSync('runtime/instant-chat.js','utf8');
+if (!chat.includes("action:'leave'") || !chat.includes("action:'send'")) fail('instant chat must use ephemeral send/leave API');
+const safety = fs.readFileSync('runtime/chat-safety.js','utf8');
+if (!/性交|セックス|fuck|시발/.test(safety)) fail('multilingual immediate moderation patterns are missing');
+
+if (!process.exitCode) console.log('Repository structure is normalized and commute-play ready.');
