@@ -1,0 +1,11 @@
+{
+  "name": "subwaytalk",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "check": "node --check runtime/location-engine.js && node --check runtime/location-ui.js && node --check runtime/ad-runtime.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
