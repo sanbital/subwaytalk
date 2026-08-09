@@ -652,6 +652,8 @@ function LoungeApp(){
   const [ads, setAds] = useState(SEED_ADS);
   const [votes, setVotes] = useState({});
   const [messages, setMessages] = useState([]);
+  // 참여자 수는 채팅 방이 알려준다(subway:participants).
+  // 예전에는 앱 전역 KV 프레즌스를 세서 노선과 무관한 숫자였고, 사실상 늘 1이었다.
   const [count, setCount] = useState(1);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -672,6 +674,11 @@ function LoungeApp(){
   const [musicOff, setMusicOff] = useState(false);
   const contextualMusic = useContextualPlaylist();
   const playCount = usePlayCount();
+  useEffect(()=>{
+    const on = (e)=> setCount(Math.max(1, (e.detail && e.detail.count) || 0));
+    window.addEventListener("subway:participants", on);
+    return ()=> window.removeEventListener("subway:participants", on);
+  },[]);
   // 화면에는 "음악"만 뜨지만, 스크린리더에는 어떤 편성이 잡혔는지 그대로 읽어준다.
   const musicLabel = musicOff ? "음악 꺼짐"
     : (contextualMusic && contextualMusic.playlistTitle)
@@ -746,7 +753,7 @@ function LoungeApp(){
       if(!alive) return;
       const pres = await sget(K.pres, {}); pres[sid]=now();
       for(const k of Object.keys(pres)){ if(now()-pres[k]>25000) delete pres[k]; }
-      await sset(K.pres, pres); if(alive) setCount(Object.keys(pres).length||1);
+      await sset(K.pres, pres);
       const m = await sget(K.msgs, []); if(alive) setMessages(m.slice(-120));
       const v = await sget(K.votes, {}); if(alive) setVotes(v);
       const a = await sget(K.ads, null); if(alive && a && a.length) setAds(a);
