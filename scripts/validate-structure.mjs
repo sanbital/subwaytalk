@@ -8,6 +8,7 @@ const mustExist = [
   'src/main.jsx',
   'src/App.jsx',
   'scripts/build.mjs',
+  'scripts/test-companions.mjs',
   'runtime/storage-adapter.js',
   'runtime/location-engine.js',
   'runtime/commute-access.js',

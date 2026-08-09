@@ -7,7 +7,8 @@
     "check:build": "node scripts/verify-bundle.mjs",
     "check:runtime": "node --check runtime/storage-adapter.js && node --check runtime/location-engine.js && node --check runtime/commute-access.js && node --check runtime/ad-runtime.js && node --check runtime/music-runtime.js && node --check runtime/social-play.js && node --check runtime/instant-chat.js && node --check runtime/chat-safety.js && node --check runtime/route-bootstrap.js",
     "check:structure": "node scripts/validate-structure.mjs",
-    "check": "npm run check:runtime && npm run check:structure && npm run check:build"
+    "check:companions": "node scripts/test-companions.mjs",
+    "check": "npm run check:runtime && npm run check:structure && npm run check:companions && npm run check:build"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
