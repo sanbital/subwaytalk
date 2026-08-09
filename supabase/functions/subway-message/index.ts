@@ -9,6 +9,7 @@
 // 지금은 세션마다 서버 서명 토큰을 발급하고, 쓰기/삭제는 토큰 소유자만 가능하며,
 // 외부에는 방 안에서만 유효한 익명 author 해시만 노출한다.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { generateCompanionMessage, shouldGenerate } from "./companions.ts";
 
 const URL_ = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -96,6 +97,80 @@ async function db(path: string, init: RequestInit = {}) {
 
 const SEND_PER_MINUTE = 12;
 
+function daypartKST(): string {
+  // 서버는 UTC 로 동작하므로 KST 로 옮겨서 시간대를 판정한다.
+  const h = new Date(Date.now() + 9 * 3600_000).getUTCHours();
+  return h < 6 ? "dawn" : h < 10 ? "morning" : h < 17 ? "day" : h < 21 ? "evening" : "night";
+}
+
+/**
+ * 방이 비어 보이면 AI 동행을 한 명 더 등장시킨다.
+ * 사람이 목표 인원만큼 모이면 shouldGenerate() 가 false 를 돌려주므로 자연히 멈춘다.
+ */
+async function topUpCompanions(room: string, station: string | null): Promise<void> {
+  const now = Date.now();
+  const windowStart = new Date(now - 15 * 60_000).toISOString();
+  const hourStart = new Date(now - 3_600_000).toISOString();
+
+  const recentRes = await db(
+    `subway_ephemeral_messages?select=session_id,nick,body,created_at,is_ai` +
+    `&room_key=eq.${encodeURIComponent(room)}&created_at=gt.${encodeURIComponent(windowStart)}` +
+    `&order=created_at.desc&limit=40`,
+  );
+  if (!recentRes.ok) return;
+  const rows = await recentRes.json() as Array<Record<string, unknown>>;
+
+  const humans = new Set<string>();
+  const companionNicks = new Set<string>();
+  let lastAiAt: number | null = null;
+  let aiLastHour = 0;
+  for (const row of rows) {
+    const isAi = row.is_ai === true;
+    const at = Date.parse(String(row.created_at));
+    if (isAi) {
+      companionNicks.add(String(row.nick));
+      if (lastAiAt == null || at > lastAiAt) lastAiAt = at;
+      if (String(row.created_at) > hourStart) aiLastHour++;
+    } else {
+      humans.add(String(row.session_id));
+    }
+  }
+
+  const [line, direction] = room.split("|");
+  const ctx = {
+    room,
+    line: line || "노선 미상",
+    direction: direction || "up",
+    station,
+    daypart: daypartKST(),
+    // 프롬프트에는 오래된 것부터 넣어야 대화 흐름이 읽힌다.
+    recent: rows.slice(0, 8).reverse().map((m) => ({
+      nick: String(m.nick), body: String(m.body), is_ai: m.is_ai === true,
+    })),
+    humans: humans.size,
+    companions: companionNicks.size,
+  };
+
+  if (!shouldGenerate(ctx, lastAiAt == null ? null : (now - lastAiAt) / 1000, aiLastHour)) return;
+
+  const generated = await generateCompanionMessage(ctx);
+  if (!generated) return;
+
+  // AI 라고 해서 모더레이션을 건너뛰지 않는다. 사람 메시지와 같은 관문을 통과해야 한다.
+  if (!moderate(generated.body).ok) return;
+
+  // 페르소나마다 고정 세션 id 를 써서 방 안에서 같은 화자로 보이게 한다.
+  const aiSession = `ai_${(await hmac(`companion|${room}|${generated.nick}`)).slice(0, 24)}`;
+  await db("subway_ephemeral_messages", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      room_key: room, session_id: aiSession, nick: generated.nick,
+      body: generated.body, is_ai: true,
+    }),
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return out({ error: "method" }, 405);
@@ -163,7 +238,7 @@ Deno.serve(async (req: Request) => {
     if (!room) return out({ error: "bad_room" }, 400);
     const after = String(d.after || "1970-01-01T00:00:00Z");
     const r = await db(
-      `subway_ephemeral_messages?select=id,room_key,session_id,nick,body,created_at` +
+      `subway_ephemeral_messages?select=id,room_key,session_id,nick,body,created_at,is_ai` +
       `&room_key=eq.${encodeURIComponent(room)}&expires_at=gt.${encodeURIComponent(new Date().toISOString())}` +
       `&created_at=gt.${encodeURIComponent(after)}&order=created_at.asc&limit=100`,
     );
@@ -172,8 +247,16 @@ Deno.serve(async (req: Request) => {
     // session_id 는 응답에서 제거하고 방 한정 익명 해시로 치환한다.
     const messages = await Promise.all(rows.map(async (m) => ({
       id: m.id, room_key: m.room_key, nick: m.nick, body: m.body, created_at: m.created_at,
+      is_ai: m.is_ai === true,
       author: await authorOf(String(m.session_id), room),
     })));
+
+    // AI 동행 보충은 응답을 막지 않는다. 폴링 지연에 생성 시간이 얹히면 안 된다.
+    try {
+      const station = d.station == null ? null : String(d.station).slice(0, 64);
+      EdgeRuntime.waitUntil(topUpCompanions(room, station));
+    } catch { /* waitUntil 미지원 환경에서는 조용히 건너뛴다 */ }
+
     return out({ ok: true, messages, me: await authorOf(sid, room) });
   }
 

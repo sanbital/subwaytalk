@@ -72,7 +72,8 @@
     if(room!==currentRoom)resetRoom(room);
     try{
       await ensureToken();
-      var j=await api({action:'list',room_key:room,session_id:sid,token:token,after:lastIso});
+      var loc=window.SAMEWAY_LOCATION_STATE||{};
+      var j=await api({action:'list',room_key:room,session_id:sid,token:token,after:lastIso,station:loc.stationKey||null});
       if(j.me)me=j.me;
       var fresh=0;
       (j.messages||[]).forEach(function(m){
@@ -142,7 +143,7 @@
     }
     if(!document.getElementById('sameway-fast-composer')){
       var c=document.createElement('div');c.id='sameway-fast-composer';
-      c.innerHTML='<div id="sameway-fast-warning"></div><div class="sw-fast-row"><textarea maxlength="300" rows="1" placeholder="가볍게 한마디"></textarea><button type="button">↑</button></div><div class="sw-fast-note">'+esc(nick)+' · 내리면 이 대화와 이름이 사라져요</div>';
+      c.innerHTML='<div id="sameway-fast-warning"></div><div class="sw-fast-row"><textarea maxlength="300" rows="1" placeholder="가볍게 한마디"></textarea><button type="button">↑</button></div><div class="sw-fast-note">'+esc(nick)+' · 내리면 이 대화와 이름이 사라져요<br/>사람이 적을 땐 <b>AI</b> 표시가 붙은 동행이 함께해요</div>';
       comp.appendChild(c);
       var ta=c.querySelector('textarea'),btn=c.querySelector('button');
       var go=async function(){var v=ta.value;ta.value='';await send(v);};

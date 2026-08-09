@@ -18,12 +18,14 @@ const mustExist = [
   'runtime/chat-safety.js',
   'runtime/route-bootstrap.js',
   'supabase/functions/subway-message/index.ts',
+  'supabase/functions/subway-message/companions.ts',
   'supabase/functions/subway-admin/index.ts',
   'supabase/functions/subway-ad-event/index.ts',
   'supabase/migrations/20260808094949_subway_v3_location_ads_music.sql',
   'supabase/migrations/20260808102037_subway_runtime_isolation.sql',
   'supabase/migrations/20260808121319_subway_commute_play_v1.sql',
   'supabase/migrations/20260809090000_subway_security_hardening.sql',
+  'supabase/migrations/20260809120000_subway_ai_companions.sql',
   'admin/index.html',
   'advertiser/index.html'
 ];
@@ -95,6 +97,14 @@ if (!chat.includes('token:token')) fail('instant chat must send its session toke
 const fn = read('supabase/functions/subway-message/index.ts');
 if (!fn.includes('requireSession')) fail('subway-message must verify session ownership before send/leave');
 if (/messages[\s\S]{0,400}session_id:\s*m\.session_id/.test(fn)) fail('subway-message must not return session_id to clients');
+
+// AI 동행은 사람인 척하면 안 된다: 응답에 is_ai 가 실려야 하고 UI 가 배지를 붙여야 한다.
+const companions = read('supabase/functions/subway-message/companions.ts');
+if (!companions.includes('사람인 척하지 않는다')) fail('AI companions must be instructed not to pose as human');
+if (!fn.includes('is_ai: m.is_ai === true')) fail('subway-message must expose is_ai so the client can label AI messages');
+if (!chat.includes("m.is_ai?'<span class=\"ai\">AI</span>'")) fail('instant chat must render an AI badge on AI messages');
+// AI 발화도 사람과 같은 모더레이션을 통과해야 한다.
+if (!fn.includes('if (!moderate(generated.body).ok) return;')) fail('AI companion output must pass the same moderation as human messages');
 
 // 광고 이벤트는 검증 함수를 통해서만 기록되어야 한다.
 const ads = read('runtime/ad-runtime.js');
