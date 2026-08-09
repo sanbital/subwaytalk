@@ -37,7 +37,7 @@ npm run check    # 문법 + 구조 + 번들 재현성 검사
 │  ├─ instant-chat.js          탑승 중 임시 대화
 │  ├─ chat-safety.js           클라이언트 1차 차단
 │  └─ route-bootstrap.js       /admin, /advertiser 화면 라우팅
-├─ supabase/functions/         subway-message · subway-admin · subway-ad-event
+├─ supabase/functions/         subway-message(+companions) · subway-admin · subway-ad-event
 ├─ supabase/migrations/        재현 가능한 DB 마이그레이션
 └─ scripts/                    빌드 · 구조 검사
 ```
@@ -52,6 +52,7 @@ npm run check    # 문법 + 구조 + 번들 재현성 검사
 | `SUBWAY_ADV_CODE` | 광고주 콘솔 접근 코드 |
 | `SUBWAY_ADMIN_SECRET` | 콘솔 세션 토큰 서명 |
 | `SUBWAY_CHAT_SECRET` | 채팅 세션 토큰·익명 author 해시 서명 |
+| `ANTHROPIC_API_KEY` | AI 동행 발화 생성 (없으면 AI 동행이 비활성) |
 
 ```bash
 supabase secrets set SUBWAY_ADMIN_CODE=... SUBWAY_ADV_CODE=... \
@@ -108,8 +109,30 @@ supabase db push
 - 응답에는 `session_id` 대신 방 안에서만 유효한 익명 author 해시가 나갑니다.
 - 폴링은 2초에서 시작해 조용하면 최대 15초까지 늘어나고, 탭이 숨으면 멈춥니다.
 
+### AI 동행 (콜드 스타트)
+
+초기에는 같은 노선·방향에 사람이 거의 없어 라운지가 빈 화면으로 보입니다. 참여자가 적을 때만 AI 동행이 대화를 채우고, **사람이 늘면 스스로 줄어듭니다.**
+
+목표 인원 `SUBWAY_AI_TARGET`(기본 4) 기준으로 `AI 수 = min(SUBWAY_AI_MAX, 목표 − 실제 사람 수)` 입니다. 사람이 4명이 되면 AI 는 0이 됩니다.
+
+| 환경변수 | 기본값 | 뜻 |
+| --- | --- | --- |
+| `SUBWAY_AI_TARGET` | 4 | 라운지가 비어 보이지 않는 최소 인원 |
+| `SUBWAY_AI_MAX` | 3 | 한 방의 AI 동행 상한 |
+| `SUBWAY_AI_GAP_SECONDS` | 45 | AI 발화 사이 최소 간격 |
+| `SUBWAY_AI_HOURLY_CAP` | 40 | 방당 시간별 AI 발화 상한(비용 안전장치) |
+| `SUBWAY_AI_MODEL` | `claude-opus-5` | 비용을 낮추려면 `claude-haiku-4-5` |
+
+설계 원칙:
+
+- **서버에서 생성**합니다. 클라이언트마다 다른 대화가 보이면 "같은 방향"이 성립하지 않습니다.
+- **사람인 척하지 않습니다.** 메시지에 `AI` 배지가 붙고, 입력창 하단에 상시 고지하며, 프롬프트에서도 부인을 금지합니다.
+- **같은 모더레이션을 통과**해야 저장됩니다. AI라고 예외를 두지 않습니다.
+- 응답을 막지 않도록 `EdgeRuntime.waitUntil()` 로 백그라운드 생성합니다.
+
 ## 알려진 한계
 
 - 투표·게임·스티커는 세션 해시 단위로만 제한됩니다. 세션을 새로 만드는 방식의 어뷰징은 기기 attestation 없이는 완전히 막을 수 없습니다.
 - 탑승 판정(`ENFORCE_SUBWAY_ACCESS`)은 클라이언트 신호 기반이라 우회 가능합니다. 과금·보상과 연결하려면 서버 검증이 필요합니다.
 - 위치기반 서비스이므로 **위치기반서비스사업 신고**(방송통신위원회) 대상 여부를 확인해야 합니다.
+- AI 동행은 배지와 고지로 사람과 구분되게 했습니다. 배지를 떼고 사람처럼 보이게 하는 것은 이용자를 속이는 일이고, `npm run check` 가 이를 막습니다.

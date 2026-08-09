@@ -8,10 +8,10 @@ const mustExist = [
   'src/main.jsx',
   'src/App.jsx',
   'scripts/build.mjs',
+  'scripts/test-companions.mjs',
   'runtime/storage-adapter.js',
   'runtime/location-engine.js',
   'runtime/commute-access.js',
-  'runtime/location-ui.js',
   'runtime/ad-runtime.js',
   'runtime/music-runtime.js',
   'runtime/social-play.js',
@@ -19,12 +19,14 @@ const mustExist = [
   'runtime/chat-safety.js',
   'runtime/route-bootstrap.js',
   'supabase/functions/subway-message/index.ts',
+  'supabase/functions/subway-message/companions.ts',
   'supabase/functions/subway-admin/index.ts',
   'supabase/functions/subway-ad-event/index.ts',
   'supabase/migrations/20260808094949_subway_v3_location_ads_music.sql',
   'supabase/migrations/20260808102037_subway_runtime_isolation.sql',
   'supabase/migrations/20260808121319_subway_commute_play_v1.sql',
   'supabase/migrations/20260809090000_subway_security_hardening.sql',
+  'supabase/migrations/20260809120000_subway_ai_companions.sql',
   'admin/index.html',
   'advertiser/index.html'
 ];
@@ -32,7 +34,7 @@ for (const path of mustExist) if (!fs.existsSync(path)) fail(`${path} is missing
 
 const obsolete = [
   'admin/app.js', 'advertiser/app.js', 'lounge.html', 'lounge.jsx',
-  'supabase_schema.sql', 'runtime/sticker-picker-fix.js'
+  'supabase_schema.sql', 'runtime/sticker-picker-fix.js', 'runtime/location-ui.js'
 ];
 for (const path of obsolete) if (fs.existsSync(path)) fail(`${path} is obsolete and must not exist`);
 
@@ -55,7 +57,7 @@ for (const path of ['admin/index.html', 'advertiser/index.html']) {
 const root = read('index.html');
 for (const script of [
   './runtime/storage-adapter.js', './runtime/location-engine.js', './runtime/commute-access.js',
-  './runtime/location-ui.js', './runtime/ad-runtime.js', './runtime/music-runtime.js',
+  './runtime/ad-runtime.js', './runtime/music-runtime.js',
   './runtime/social-play.js', './runtime/instant-chat.js',
   './runtime/chat-safety.js', './runtime/route-bootstrap.js'
 ]) if (!root.includes(script)) fail(`index.html is missing ${script}`);
@@ -96,6 +98,24 @@ if (!chat.includes('token:token')) fail('instant chat must send its session toke
 const fn = read('supabase/functions/subway-message/index.ts');
 if (!fn.includes('requireSession')) fail('subway-message must verify session ownership before send/leave');
 if (/messages[\s\S]{0,400}session_id:\s*m\.session_id/.test(fn)) fail('subway-message must not return session_id to clients');
+
+// AI 동행은 사람인 척하면 안 된다: 응답에 is_ai 가 실려야 하고 UI 가 배지를 붙여야 한다.
+const companions = read('supabase/functions/subway-message/companions.ts');
+if (!companions.includes('사람인 척하지 않는다')) fail('AI companions must be instructed not to pose as human');
+if (!fn.includes('is_ai: m.is_ai === true')) fail('subway-message must expose is_ai so the client can label AI messages');
+if (!chat.includes("m.is_ai?'<span class=\"ai\">AI</span>'")) fail('instant chat must render an AI badge on AI messages');
+// AI 발화도 사람과 같은 모더레이션을 통과해야 한다.
+if (!fn.includes('if (!moderate(generated.body).ok) return;')) fail('AI companion output must pass the same moderation as human messages');
+
+// 함께하기 탭은 매일 누가 행을 넣어주지 않아도 내용이 있어야 한다.
+// game_date=eq.<오늘> 로 되돌아가면 시드 다음 날 탭이 통째로 비어버린다.
+const play = read('runtime/social-play.js');
+if (play.includes('&game_date=eq.')) {
+  fail('daily games must not be pinned to today (use game_date=lte.<today>); otherwise the 함께하기 tab empties out a day after seeding');
+}
+if (!play.includes("dispatchEvent(new CustomEvent('subway:play-count'")) {
+  fail('social play must announce how many activities are open so the toolbar can show it without being opened');
+}
 
 // 광고 이벤트는 검증 함수를 통해서만 기록되어야 한다.
 const ads = read('runtime/ad-runtime.js');

@@ -25,8 +25,8 @@ const CSS = `
 .lg-topbar .brand{color:var(--faint);font-size:12px;align-self:center;margin-right:auto;padding-left:10px;font-weight:800}
 .lg-topbar .brand b{color:var(--c)}
 
-.phone{width:100%;max-width:430px;min-height:100vh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
-@media(min-width:520px){.phone{min-height:780px;max-height:94vh;margin:16px 0;border-radius:38px;border:1px solid #cfd5dd;
+.phone{width:100%;max-width:430px;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:520px){.phone{height:min(94vh,860px);margin:16px 0;border-radius:38px;border:1px solid #cfd5dd;
   box-shadow:0 34px 90px rgba(40,55,80,.28)}}
 .scr{flex:1;display:flex;flex-direction:column;min-height:0}
 .center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:36px 28px}
@@ -76,8 +76,67 @@ const CSS = `
 .lh .row1{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800}
 .lh .row1 .ico{font-size:14px}
 .lh.arr .row1{color:var(--c-d)}
-.lh .geonotice{margin-top:8px;padding:9px 11px;border-radius:11px;background:#FFF6E8;border:1px solid #F3D9AE;
-  color:#8A5B17;font-size:11.5px;font-weight:650;line-height:1.55}
+
+/* ---------- 대화 우선 레이아웃 ----------
+   이 앱은 메신저다. 헤더/광고/부가기능이 세로 공간을 가져가면 본질이 안 보인다.
+   헤더는 한 줄로 압축하고, 나머지 세로 공간은 전부 메시지 리스트가 가져간다. */
+.lounge{display:flex;flex-direction:column;min-height:0}
+.lh2{background:var(--paper);border-bottom:1px solid var(--line);flex:none}
+.lh2.arr{background:linear-gradient(180deg,var(--c-soft2),var(--paper))}
+.lh2-bar{display:flex;align-items:center;gap:7px;padding:9px 10px 9px 12px;min-width:0}
+.lh2-main{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:none;border:0;padding:0;
+  font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+.lh2-line{font-size:14px;font-weight:800;white-space:nowrap;flex:none}
+.lh2-dir{font-size:12px;color:var(--muted);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh2-caret{font-size:9px;color:var(--faint);flex:none}
+.lh2-people{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:var(--c-d);
+  background:var(--c-soft2);border:1px solid var(--c-soft);border-radius:999px;padding:4px 9px;flex:none}
+.lh2-off{flex:none;max-width:96px;border:1px solid var(--line);background:#fff;color:var(--muted);
+  border-radius:999px;padding:6px 11px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;transition:.15s}
+.lh2-off.hot{border-color:var(--c);background:var(--c-soft2);color:var(--c-d)}
+.lh2-detail{padding:0 12px 11px;display:flex;flex-direction:column;gap:8px}
+.lh2-now{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px}
+.lh2-now b{font-weight:800}
+.lh2-now span{font-size:11px;color:var(--faint);font-weight:650}
+.lh2-rail{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.lh2-rail::-webkit-scrollbar{height:0}
+.lh2-stop{flex:none;font-size:11px;font-weight:700;color:var(--faint);background:var(--paper2);
+  border:1px solid var(--line2);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.lh2-stop.on{color:#fff;background:var(--c);border-color:var(--c)}
+.geonotice{margin:8px 12px 0;padding:9px 11px;border-radius:11px;background:#FFF6E8;border:1px solid #F3D9AE;
+  color:#8A5B17;font-size:11.5px;font-weight:650;line-height:1.55;flex:none}
+
+/* 하단 툴바: 부가 기능 입구. 아이콘+한 단어라 무엇인지 바로 읽힌다. */
+.sw-toolbar{display:flex;gap:6px;margin-bottom:8px}
+.swt{flex:1;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:11px;padding:8px 6px;
+  font-size:12px;font-weight:750;cursor:pointer;transition:.15s;overflow:hidden;white-space:nowrap}
+.swt.on{border-color:var(--c);background:var(--c-soft2);color:var(--c-d)}
+.swt-i{font-size:14px;line-height:1;flex:none}
+/* 긴 편성 제목·닉네임이 버튼을 밀어내지 않게 잘라낸다. */
+.swt-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* 함께하기 안에 몇 개가 열려 있는지. 0 이면 아예 그리지 않는다. */
+.swt-n{flex:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--c);color:#fff;
+  font-size:10px;font-weight:900;line-height:16px;text-align:center}
+.swt.on .swt-n{background:var(--c-d)}
+.swt-dot{position:absolute;top:6px;right:8px;width:5px;height:5px;border-radius:50%;background:var(--c)}
+
+/* 바텀시트: 대화 위에 덮이지만 배경 탭·손잡이로 즉시 닫힌다. */
+.sw-ov{position:absolute;inset:0;z-index:40;background:rgba(20,30,48,.32);display:flex;align-items:flex-end}
+.sw-sheet{width:100%;max-height:78%;background:var(--bg);border-radius:22px 22px 0 0;display:flex;
+  flex-direction:column;box-shadow:0 -14px 40px rgba(20,30,48,.22);animation:sheetUp .18s ease-out}
+@keyframes sheetUp{from{transform:translateY(14px);opacity:.6}to{transform:translateY(0);opacity:1}}
+.sw-grab{align-self:center;width:40px;height:4px;border:0;border-radius:999px;background:var(--rail);
+  margin:9px 0 4px;cursor:pointer}
+.sw-tabs{display:flex;gap:6px;padding:4px 14px 10px;border-bottom:1px solid var(--line)}
+.sw-tabs button{flex:1;border:0;background:none;color:var(--muted);font-size:13px;font-weight:800;
+  padding:8px 0;border-radius:9px;cursor:pointer}
+.sw-tabs button.on{background:var(--c-soft2);color:var(--c-d)}
+/* 손잡이만으로는 닫는 법이 보이지 않는다. 명시적인 닫기를 같이 둔다. */
+.sw-tabs .sw-x{flex:none;width:34px;color:var(--faint);font-size:14px}
+.sw-sheet-body{overflow-y:auto;padding:12px 14px 20px}
+.sw-sheet-body::-webkit-scrollbar{width:0}
 .lh .cnt{margin-left:auto;font-size:12px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
 .track{position:relative;height:30px;margin-top:12px}
 .track .base{position:absolute;left:5px;right:5px;top:14px;height:4px;border-radius:3px;background:var(--rail);overflow:hidden}
@@ -128,7 +187,7 @@ const CSS = `
 .gateerr{color:var(--danger);font-size:12px;margin-top:9px;font-weight:600}
 .gatenote{font-size:11px;color:var(--faint);margin-top:16px;line-height:1.55}
 
-.feed{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:12px}
+.feed{flex:1;min-height:0;overflow-y:auto;padding:12px 12px 6px;display:flex;flex-direction:column}
 .feed::-webkit-scrollbar{width:0}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--sh)}
 .card .tag{font-size:10.5px;font-weight:800;letter-spacing:.03em;color:var(--c-d);margin-bottom:9px}
@@ -199,13 +258,11 @@ const CSS = `
 @keyframes gone{to{opacity:0;transform:translateY(-22px);filter:blur(4px)}}
 .empty{color:var(--faint);font-size:13px;padding:18px 14px;text-align:center;line-height:1.5}
 
-/* composer + 하차 */
+/* composer */
 .comp{border-top:1px solid var(--line);padding:9px 12px 12px;background:var(--paper)}
-.getoff-wrap{margin-bottom:9px}
-.getoff{width:100%;border:1.5px solid var(--c);background:#fff;color:var(--c-d);border-radius:13px;padding:11px;font-size:13.5px;
-  font-weight:800;cursor:pointer;transition:.25s;display:flex;align-items:center;justify-content:center;gap:7px}
-.getoff.hot{background:var(--c);color:#fff;padding:15px;font-size:15.5px;box-shadow:0 8px 20px rgba(22,199,166,.4);animation:beat 1.1s infinite}
-@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.018)}}
+/* .getoff 는 이제 순수한 동작용 훅이다(runtime/instant-chat.js 가 이 클래스로 하차를 감지한다).
+   예전 화면 하단을 꽉 채우던 초록 버튼의 스타일이 남아 있어서, 헤더로 옮긴 뒤에도
+   .lh2-off 를 덮어쓰고 "나가기"가 대화보다 눈에 띄는 상태였다. 시각 규칙은 .lh2-off 에만 둔다. */
 .nk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-bottom:9px;padding:0 2px}
 .nk b{color:var(--c-d);font-weight:800} .nk button{background:none;border:none;color:var(--faint);text-decoration:underline;cursor:pointer;font-size:11px}
 .ipt{display:flex;gap:8px;align-items:flex-end}
@@ -359,16 +416,16 @@ const SEED_ADS = [
 ];
 
 /* 옆모습 전동차 아이콘 */
+// 지하철 전면부: 차체 + 전면창 + 전조등, 아래는 바퀴가 아니라 선로.
+// (예전 마크는 바퀴 두 개가 달려 있어 버스로 보였다.)
 function TrainMark({size=22, color="#16C7A6"}){
   return (
     <svg width={size} height={Math.round(size*0.64)} viewBox="0 0 42 26" fill="none" style={{display:"block"}}>
-      <path d="M5 8c0-2.5 2-4.5 4.5-4.5H28c5 0 9 4 9 9v5.5c0 1.9-1.5 3.5-3.5 3.5H8c-1.9 0-3-1.4-3-3.2z" fill={color}/>
-      <rect x="8.5" y="7.5" width="6.6" height="6.4" rx="1.6" fill="#fff" opacity="0.92"/>
-      <rect x="17.5" y="7.5" width="6.6" height="6.4" rx="1.6" fill="#fff" opacity="0.92"/>
-      <path d="M28 7.5h0.5c4 0 6.6 2.6 7.2 6.4H28z" fill="#fff" opacity="0.95"/>
-      <circle cx="33.5" cy="18" r="1.4" fill="#FFE08A"/>
-      <circle cx="13" cy="22.5" r="2.2" fill="#15181D"/>
-      <circle cx="28" cy="22.5" r="2.2" fill="#15181D"/>
+      <rect x="9" y="2" width="24" height="19" rx="5.5" fill={color}/>
+      <rect x="12.6" y="5.4" width="16.8" height="7.4" rx="2.4" fill="#fff" opacity="0.94"/>
+      <circle cx="14.6" cy="17" r="1.7" fill="#FFE08A"/>
+      <circle cx="27.4" cy="17" r="1.7" fill="#FFE08A"/>
+      <rect x="3" y="23" width="36" height="2.2" rx="1.1" fill={color} opacity="0.32"/>
     </svg>
   );
 }
@@ -414,6 +471,19 @@ function useContextualPlaylist(){
     return ()=> window.removeEventListener("subway:music", onPick);
   },[]);
   return rule;
+}
+
+/* 함께하기 안에 지금 몇 개가 열려 있는지 구독한다.
+   숫자를 툴바에 띄워 두지 않으면, 시트를 한 번 열어보기 전에는
+   그 안이 비었는지 아닌지 알 방법이 없다. */
+function usePlayCount(){
+  const [n, setN] = useState(()=> (typeof window!=="undefined" && window.SAMEWAY_PLAY_COUNT) || 0);
+  useEffect(()=>{
+    const on = (e)=> setN((e.detail && e.detail.count) || 0);
+    window.addEventListener("subway:play-count", on);
+    return ()=> window.removeEventListener("subway:play-count", on);
+  },[]);
+  return n;
 }
 
 /* ---------------- 위치 획득 ----------------
@@ -592,10 +662,20 @@ function LoungeApp(){
   // 베타는 실제 GPS 전용이다. 위치를 못 잡으면 가짜 주행을 보여주지 않고 대기 화면에 머문다.
   const [locStatus, setLocStatus] = useState("acquiring"); // acquiring | ready | denied | unavailable
   const [matchSlow, setMatchSlow] = useState(false);
+  const [headOpen, setHeadOpen] = useState(false);   // 헤더 상세 펼침
+  const [sheet, setSheet] = useState(null);          // null | "play" | "music"
+  const [locAccuracy, setLocAccuracy] = useState(null);
+  const [locConfidence, setLocConfidence] = useState(null);
+  const [nextStn, setNextStn] = useState(null);
   const [nearest, setNearest] = useState(null);      // {name,idx,distM}
   const [geoErr, setGeoErr] = useState("");
   const [musicOff, setMusicOff] = useState(false);
   const contextualMusic = useContextualPlaylist();
+  const playCount = usePlayCount();
+  // 화면에는 "음악"만 뜨지만, 스크린리더에는 어떤 편성이 잡혔는지 그대로 읽어준다.
+  const musicLabel = musicOff ? "음악 꺼짐"
+    : (contextualMusic && contextualMusic.playlistTitle)
+      ? `음악 · ${contextualMusic.playlistTitle}` : "음악";
 
   const goneRef = useRef(false);
   const feedRef = useRef(null);
@@ -616,6 +696,9 @@ function LoungeApp(){
       idx: hit.idx,
       distM: state.distanceToStation == null ? 0 : state.distanceToStation
     });
+    setLocAccuracy(state.accuracy == null ? null : state.accuracy);
+    setLocConfidence(state.confidence || null);
+    setNextStn(state.nextStation || null);
   },[]);
 
   const startMatch = async () => {
@@ -826,125 +909,111 @@ function LoungeApp(){
   const railLen = Math.max(1, railNames.length-1);
   const posPct = railCur/railLen*100;
   const arrNow = !!(nearest && nearest.distM < 300);
-  const nextStn = (typeof window!=="undefined" && window.SAMEWAY_LOCATION_STATE && window.SAMEWAY_LOCATION_STATE.nextStation) || null;
   const headTitle = nearest
     ? (arrNow ? `${nearest.name}역 도착` : `${nearest.name}역 부근`)
     : "위치 확인 중";
 
   return (
-    <div className="scr">
-      <div className={"lh"+(arrNow?" arr":"")}>
-        <div className="row1"><span className="ico" style={{display:"inline-flex",alignItems:"center"}}><TrainMark size={19} color={arrNow?"#0A8F77":"#16C7A6"}/></span>
-          {headTitle}
-          <span className="cnt">함께 이동 중 {count}명</span></div>
-        {geoErr && <div className="geonotice">{geoErr}</div>}
-        <div className="track">
-          <div className="base"/>
-          <div className="fill" style={{width:`${posPct}%`}}/>
-          {railNames.map((_,i)=>{
-            const left = i/railLen*100;
-            return <div key={i} className={"stop"+(railCur>=i?" passed":"")} style={{left:`calc(${left}% )`}}/>;
-          })}
-          <div className="train" style={{left:`${posPct}%`}}><TrainMark size={30}/></div>
-        </div>
-        <div className="stn">
-          <span className="from">📍 {railLine}</span>
-          <span className="to">{nextStn ? `${nextStn} 방면` : (nearest ? `${nearest.distM.toLocaleString()}m` : "측정 중")}</span>
-        </div>
-      </div>
-
-      {activeAd && !adClosed && (
-        <div className="adbanner">
-          {activeAd.image ? <img className="adthumb" src={activeAd.image} alt=""/> : <div className="adbar"/>}
-          <div className="adbody">
-            <div className="adlabel">광고 · {activeAd.station}역</div>
-            <div className="adhead">{activeAd.brand} {activeAd.station}역점</div>
-            <div className="adoffer">{activeAd.offer}</div>
-          </div>
-          <a className="adcta" href={activeAd.url} target="_blank" rel="noreferrer" onClick={()=>clickAd(activeAd)}>{activeAd.cta||"매장 보기"}</a>
-          <button className="adx" onClick={()=>setAdClosed(true)} aria-label="광고 닫기">✕</button>
-        </div>
-      )}
-
-      <div className="feed" ref={feedRef}>
-        <div className={"card"+(myVote && !showResult ? " mini":"")}>
-          <div className="cardhead">
-            <div className="tag">{card.cat}</div>
-            {myVote && <button className="vtoggle" onClick={()=>setShowResult(s=>!s)}>{showResult?"접기 ▴":"전체 결과 ▾"}</button>}
-          </div>
-          <div className={"q"+(myVote && !showResult ? " qmini":"")}>{card.q}</div>
-
-          {(!myVote || showResult) && <>
-            {card.opts.map(([label,oid])=>{
-              const c = counts[oid]||0; const pct = total? Math.round(c/total*100):0;
-              return (
-                <div key={oid} className={"opt"+(myVote===oid?" sel":"")} onClick={()=>vote(oid)}>
-                  <div className="bar" style={{width:(myVote?pct:0)+"%"}}/>
-                  <span className="lbl">{label}</span>{myVote && <span className="pct">{pct}%</span>}
-                </div>);
-            })}
-            <div className="meta"><span>{total}명 참여</span>{!myVote && <span className="hint">탭해서 투표하면 결과가 보여요</span>}</div>
-          </>}
-
-          {myVote && !showResult && (
-            <div className="vsum">
-              <span className="chk">✓</span>
-              <span className="vlbl">내 선택 <b>{myOpt?.[0]}</b></span>
-              <span className="vpct">{myPct}%</span>
-              <span className="vtot">· {total}명</span>
-            </div>
-          )}
-        </div>
-
-        {(()=>{ const src = parseYT((contextualMusic && contextualMusic.playlistUrl) || card.playlist.url);
-          const theme = (contextualMusic && contextualMusic.playlistTitle)
-            || (nearest
-              ? `${nearest.line} ${nearest.name} 부근 추천 음악`
-              : "이동 중 추천 음악");
-          if(!src) return (
-            <div className="music"><div className="offrow"><span>🎵 등록된 재생용 유튜브 편성이 없어요</span></div></div>
-          );
-          if(musicOff) return (
-            <div className="music"><div className="offrow"><span>🎵 라운지 음악을 껐어요</span>
-              <button onClick={()=>setMusicOff(false)}>다시 듣기</button></div></div>
-          );
-          return <MusicPlayer source={src} theme={theme} onOff={()=>setMusicOff(true)} />;
-        })()}
-
-        <div className="msgs">
-          {messages.length===0 && <div className="empty">첫 한 줄을 남겨보세요.<br/>카드에 대한 생각이면 좋아요.</div>}
-          {messages.map(m=>{
-            const liked = (m.likes||[]).includes(sid);
-            return (
-              <div key={m.id} className={"msg"+(m.sid===sid?" me":"")+(m._gone?" gone":"")}>
-                <div className="nm">{m.sid===sid?"나":m.nick}</div>
-                <div className="bd">{m.content}</div>
-                <div className="ft">
-                  <button className={"like"+(liked?" on":"")} onClick={()=>like(m.id)}>👍 {(m.likes||[]).length||0}</button>
-                  {m.sid!==sid && <button className="rep" onClick={()=>report(m)}>신고</button>}
-                </div></div>);
-          })}
-        </div>
-      </div>
-
-      <div className="comp">
-        {warn && <div className="warn-line">{warn}</div>}
-        <div className="getoff-wrap">
-          <button className={"getoff"+(arrNow?" hot":"")} onClick={getOff}>
-            {arrNow && nearest ? `🚉 ${nearest.name}역에서 내릴게요` : "여기서 내릴게요"}
+    <div className="scr lounge">
+      {/* 헤더: 한 줄로 압축. 탭하면 상세가 열린다. 채팅이 주인공이므로 세로 공간을 최소로 쓴다. */}
+      <header className={"lh2"+(arrNow?" arr":"")}>
+        <div className="lh2-bar">
+          <button className="lh2-main" onClick={()=>setHeadOpen(o=>!o)} aria-expanded={headOpen}>
+            <TrainMark size={17} color={arrNow?"#0A8F77":"#16C7A6"}/>
+            <b className="lh2-line">{railLine || "위치 확인 중"}</b>
+            <span className="lh2-dir">{nextStn ? `${nextStn} 방면` : (nearest ? `${nearest.name}역` : "")}</span>
+            <span className="lh2-caret">{headOpen ? "▴" : "▾"}</span>
+          </button>
+          <span className="lh2-people" title={`이 라운지에 ${count}명이 함께 있어요`}>
+            <span className="dot-live"/>{count}명
+          </span>
+          {/* 나가기는 대화보다 강하면 안 된다. 역에 닿았을 때만 살짝 올라온다. */}
+          <button className={"lh2-off"+(arrNow?" hot":"")+" getoff"} onClick={getOff}
+            title={arrNow && nearest ? `${nearest.name}역에서 내리기` : "내리기"}>
+            내리기
           </button>
         </div>
-        <div className="nk">
-          {nick ? <>이 라운지에서 <b>{nick}</b> <button onClick={()=>setNickModal(true)}>변경</button></>
-                : <>이름 없이 참여 중 · 첫 메시지에 이름을 정할 수 있어요</>}
-        </div>
-        <div className="ipt">
-          <textarea rows={1} maxLength={100} value={text} placeholder="한 줄 남기기 (100자)"
-            onChange={e=>{ setText(e.target.value); if(warn) setWarn(""); }}
-            onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); doSend(); } }}/>
-          <button className="send" disabled={!text.trim()||sending} onClick={doSend}>{sending?"…":"↑"}</button>
+
+        {headOpen && (
+          <div className="lh2-detail">
+            <div className="lh2-now">
+              <b>{nearest ? `${nearest.name}역 ${arrNow ? "도착" : "부근"}` : "위치 확인 중"}</b>
+              <span>{locAccuracy != null ? `GPS ±${locAccuracy}m` : ""}{locConfidence==="low" ? " · 정확도 낮음" : ""}</span>
+            </div>
+            {railNames.length > 1 && (
+              <div className="lh2-rail">
+                {railNames.map((n,i)=>(
+                  <span key={i} className={"lh2-stop"+(i===railCur?" on":"")}>{n}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </header>
+
+      {geoErr && <div className="geonotice">{geoErr}</div>}
+
+      {/* 광고 슬롯: 슬림 한 줄. runtime/ad-runtime.js 가 여기에만 그린다. */}
+      <div id="sw-slot-ad"/>
+
+      {/* 대화 = 주 화면. runtime/instant-chat.js 가 여기에 붙는다. */}
+      <div className="feed" ref={feedRef}/>
+
+      <div className="comp">
+        {/* 부가 기능은 화면을 가리지 않고 여기서 열린다. */}
+        {/* 각 버튼은 "무엇이 들어 있는지"까지 표시한다.
+            라벨만 있으면 열어보기 전에는 안이 비었는지 알 수 없다. */}
+        <div className="sw-toolbar">
+          <button className={"swt"+(sheet==="play"?" on":"")} onClick={()=>setSheet(sheet==="play"?null:"play")}
+            aria-label={playCount ? `함께하기 ${playCount}개` : "함께하기"}>
+            <span className="swt-i">🎲</span>함께하기
+            {playCount>0 && <span className="swt-n">{playCount}</span>}
+          </button>
+          {/* 버튼 폭이 한글 여섯 자 남짓이라 편성 제목을 넣으면 잘려서 뜻을 잃는다.
+              라벨은 짧게 두고, 추천 편성이 잡혔다는 사실만 점으로 알린다. 제목은 시트 안에 있다. */}
+          <button className={"swt"+(sheet==="music"?" on":"")} onClick={()=>setSheet(sheet==="music"?null:"music")}
+            aria-label={musicLabel}>
+            <span className="swt-i">🎧</span><span className="swt-t">{musicOff ? "음악 꺼짐" : "음악"}</span>
+            {!musicOff && contextualMusic && <span className="swt-dot"/>}
+          </button>
+          <button className="swt" onClick={()=>setNickModal(true)} aria-label={`이름 바꾸기 · 현재 ${nick || "랜덤"}`}>
+            <span className="swt-i">🙂</span><span className="swt-t">{nick || "이름"}</span>
+          </button>
         </div>
       </div>
+
+      {/* 바텀시트: 대화 위로 덮되 배경 탭이나 손잡이로 바로 닫힌다. */}
+      {sheet && (
+        <div className="sw-ov" onClick={()=>setSheet(null)}>
+          <div className="sw-sheet" onClick={e=>e.stopPropagation()}>
+            <button className="sw-grab" onClick={()=>setSheet(null)} aria-label="닫기"/>
+            <div className="sw-tabs">
+              <button className={sheet==="play"?"on":""} onClick={()=>setSheet("play")}>
+                함께하기{playCount>0 ? ` ${playCount}` : ""}
+              </button>
+              <button className={sheet==="music"?"on":""} onClick={()=>setSheet("music")}>음악</button>
+              <button className="sw-x" onClick={()=>setSheet(null)} aria-label="닫기">✕</button>
+            </div>
+            <div className="sw-sheet-body">
+              {/* 두 슬롯 모두 항상 DOM 에 두고 보이기만 토글한다.
+                  runtime 모듈이 mount 한 노드가 탭 전환 때마다 파괴되지 않게 하기 위함. */}
+              <div id="sw-sheet-play" style={{display: sheet==="play" ? "block" : "none"}}/>
+              <div style={{display: sheet==="music" ? "block" : "none"}}>
+                {(()=>{ const src = parseYT((contextualMusic && contextualMusic.playlistUrl) || card.playlist.url);
+                  const theme = (contextualMusic && contextualMusic.playlistTitle)
+                    || (nearest ? `${nearest.line} ${nearest.name} 부근 추천 음악` : "이동 중 추천 음악");
+                  if(!src) return <div className="music"><div className="offrow"><span>🎵 등록된 편성이 없어요</span></div></div>;
+                  if(musicOff) return (
+                    <div className="music"><div className="offrow"><span>🎵 라운지 음악을 껐어요</span>
+                      <button onClick={()=>setMusicOff(false)}>다시 듣기</button></div></div>
+                  );
+                  return <MusicPlayer source={src} theme={theme} onOff={()=>setMusicOff(true)}/>;
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {nickModal && (
         <div className="ov" onClick={()=>setNickModal(false)}>
