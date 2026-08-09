@@ -117,6 +117,13 @@ const play = read('runtime/social-play.js');
 if (play.includes('&game_date=eq.')) {
   fail('daily games must not be pinned to today (use game_date=lte.<today>); otherwise the 함께하기 tab empties out a day after seeding');
 }
+// 빈 방에 들어온 사람에게 "아무 말이나 하세요" 말고 실제로 누를 것을 준다.
+if (!chat.includes('sw-opening') || !chat.includes('data-starter')) {
+  fail('the empty lounge must offer an opening move (today\'s question slot + one-tap starters), not just a prompt to type something');
+}
+if (!play.includes("addEventListener('subway:chat-empty'")) {
+  fail('social play must fill the empty-chat opening slot; otherwise the only thing answering "what do I do here" stays hidden in the sheet');
+}
 if (!play.includes("dispatchEvent(new CustomEvent('subway:play-count'")) {
   fail('social play must announce how many activities are open so the toolbar can show it without being opened');
 }

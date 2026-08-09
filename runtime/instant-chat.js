@@ -64,10 +64,51 @@
       box.scrollTop=box.scrollHeight;
       return;
     }
-    box.innerHTML=roomKey()
-      ? '<div class="sw-fast-empty"><div class="e-i">💬</div>같은 열차에 탄 사람에게<br/>가볍게 한마디 남겨보세요.</div>'
-      : '<div class="sw-fast-empty"><div class="e-i">🧭</div>어느 노선인지 확인하는 중이에요.<br/><span>지하에서는 조금 걸릴 수 있어요.</span></div>';
+    if(!roomKey()){
+      box.innerHTML='<div class="sw-fast-empty"><div class="e-i">🧭</div><b>어느 노선인지 확인하는 중이에요</b><span>지하에서는 조금 걸릴 수 있어요.</span></div>';
+      return;
+    }
+    drawOpening(box);
   }
+
+  // 빈 방에서는 "아무 말이나 하세요"가 지시일 뿐 목적이 되지 못한다.
+  // 그래서 첫 화면 자체를 첫 수(opening move)로 만든다:
+  //   · 여기가 뭐 하는 곳인지 한 줄
+  //   · 오늘의 질문(social-play 가 #sw-opening 에 채운다)
+  //   · 한 번 누르면 그대로 전송되는 말문 트기 버튼
+  // 대화가 시작되면 전부 사라지고 메시지만 남는다.
+  function drawOpening(box){
+    box.innerHTML='<div class="sw-fast-empty">'+
+      '<div class="e-i">💬</div>'+
+      '<b>같은 열차에 탄 사람들과 대화해요</b>'+
+      '<span>내릴 때까지만 남고, 내리면 대화도 이름도 사라져요.</span>'+
+      '<div id="sw-opening"></div>'+
+      '<div class="sw-starters">'+
+        STARTERS[daypart()].map(function(t){
+          return '<button type="button" data-starter="'+esc(t)+'">'+esc(t)+'</button>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+    box.querySelectorAll('[data-starter]').forEach(function(b){
+      b.onclick=function(){ send(b.getAttribute('data-starter')); };
+    });
+    // 오늘의 질문은 social-play 가 채운다. 여기서 데이터를 다시 불러오지 않는다.
+    window.dispatchEvent(new CustomEvent('subway:chat-empty'));
+  }
+
+  function daypart(){
+    var h=new Date().getHours();
+    return h<6?'dawn':h<10?'morning':h<17?'day':h<21?'evening':'night';
+  }
+  // 첫마디의 비용을 "문장 쓰기"에서 "한 번 누르기"로 낮춘다.
+  // 개인정보나 위치를 특정하지 않는, 누가 눌러도 무해한 말만 둔다.
+  var STARTERS={
+    dawn:['이 시간에 다들 어디 가세요','새벽 지하철 조용하네요','졸려요…'],
+    morning:['오늘따라 붐비네요','출근길 다들 화이팅','커피 한 잔 하고 싶다'],
+    day:['어디쯤 가고 계세요?','오늘 날씨 어때요?','한산해서 좋다'],
+    evening:['드디어 퇴근','오늘 하루 어땠어요?','집 가는 길이 제일 좋다'],
+    night:['다들 늦게까지 고생 많네요','이 시간 지하철 조용해서 좋아요','막차 아슬아슬']
+  };
 
   async function poll(){
     if(document.hidden)return;
@@ -188,7 +229,7 @@
   mount();
 
   var style=document.createElement('style');
-  style.textContent='#sameway-fast-chat{display:flex;flex-direction:column;flex:1;min-height:0}#sameway-fast-messages{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;flex:1;min-height:0;overflow-y:auto}.sw-fast-msg{max-width:82%;background:#fff;border:1px solid #E1E5EB;border-radius:15px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,30,48,.05)}.sw-fast-msg.me{align-self:flex-end;background:#E7FAF5;border-color:#CFF3EB}.sw-fast-msg .n{font-size:10.5px;color:#727A86;font-weight:800;margin-bottom:3px}.sw-fast-msg .b{font-size:14px;line-height:1.45}.sw-fast-empty{text-align:center;color:#A4ABB6;font-size:12.5px;line-height:1.7;padding:38px 20px;font-weight:650}.sw-fast-empty .e-i{font-size:30px;margin-bottom:10px;opacity:.75}.sw-fast-empty span{font-size:11.5px;color:#C2C8D0}.sw-fast-msg .n .ai{margin-left:5px;padding:1px 5px;border-radius:5px;background:#EEF1F5;color:#8A93A0;font-size:9px;font-weight:800;vertical-align:1px}#sameway-fast-composer.locked{opacity:.55}#sameway-fast-composer{padding:0 12px 10px}.sw-fast-row{display:flex;gap:8px}.sw-fast-row textarea{flex:1;border:1px solid #E1E5EB;border-radius:14px;padding:11px 12px;resize:none;font:inherit;outline:none}.sw-fast-row button{width:44px;border:0;border-radius:14px;background:#16C7A6;color:#fff;font-size:18px;font-weight:900}.sw-fast-note{font-size:10.5px;color:#A4ABB6;margin-top:5px}#sameway-fast-warning{font-size:11px;color:#E5484D;margin-bottom:4px}';
+  style.textContent='#sameway-fast-chat{display:flex;flex-direction:column;flex:1;min-height:0}#sameway-fast-messages{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;flex:1;min-height:0;overflow-y:auto}.sw-fast-msg{max-width:82%;background:#fff;border:1px solid #E1E5EB;border-radius:15px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,30,48,.05)}.sw-fast-msg.me{align-self:flex-end;background:#E7FAF5;border-color:#CFF3EB}.sw-fast-msg .n{font-size:10.5px;color:#727A86;font-weight:800;margin-bottom:3px}.sw-fast-msg .b{font-size:14px;line-height:1.45}.sw-fast-empty{text-align:center;color:#A4ABB6;font-size:12.5px;line-height:1.7;padding:26px 16px;font-weight:650}.sw-fast-empty .e-i{font-size:28px;margin-bottom:8px;opacity:.75}.sw-fast-empty b{display:block;font-size:14.5px;color:#3D4450;font-weight:800;margin-bottom:3px}.sw-fast-empty span{display:block;font-size:11.5px;color:#C2C8D0}.sw-starters{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:16px}.sw-starters button{border:1px solid #E1E5EB;background:#fff;color:#3D4450;border-radius:999px;padding:8px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}.sw-starters button:active{background:#E7FAF5;border-color:#16C7A6}.sw-fast-msg .n .ai{margin-left:5px;padding:1px 5px;border-radius:5px;background:#EEF1F5;color:#8A93A0;font-size:9px;font-weight:800;vertical-align:1px}#sameway-fast-composer.locked{opacity:.55}#sameway-fast-composer{padding:0 12px 10px}.sw-fast-row{display:flex;gap:8px}.sw-fast-row textarea{flex:1;border:1px solid #E1E5EB;border-radius:14px;padding:11px 12px;resize:none;font:inherit;outline:none}.sw-fast-row button{width:44px;border:0;border-radius:14px;background:#16C7A6;color:#fff;font-size:18px;font-weight:900}.sw-fast-note{font-size:10.5px;color:#A4ABB6;margin-top:5px}#sameway-fast-warning{font-size:11px;color:#E5484D;margin-bottom:4px}';
   document.head.appendChild(style);
 
   window.SAMEWAY_INSTANT_CHAT={version:'6.0.0',send:send,leave:leave,poll:poll,roomKey:roomKey};
