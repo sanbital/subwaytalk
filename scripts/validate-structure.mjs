@@ -63,9 +63,17 @@ for (const script of [
 ]) if (!root.includes(script)) fail(`index.html is missing ${script}`);
 // 흔들리는 열차 안에서 확대를 막으면 안 된다.
 if (/user-scalable\s*=\s*no|maximum-scale/.test(root)) fail('index.html must not block pinch zoom');
+// 문서가 스크롤되면 iOS 키보드가 헤더를 상태바 뒤로 밀어 올리고, 그 영역의 탭은 페이지에 닿지 않는다.
+if (!/html,\s*body\s*\{[^}]*overflow:\s*hidden/.test(root)) {
+  fail('index.html must lock document scrolling; otherwise the iOS keyboard scrolls the header under the status bar and its buttons stop responding');
+}
 
 // 배포되는 화면 전환(관리자/광고주)은 상단바 버튼에 의존한다.
 const appSource = read('src/App.jsx');
+// viewport-fit=cover 를 쓰면 safe-area 를 직접 먹어야 한다. 아니면 헤더가 다이나믹 아일랜드 밑으로 들어간다.
+if (root.includes('viewport-fit=cover') && !appSource.includes('env(safe-area-inset-top)')) {
+  fail('viewport-fit=cover requires env(safe-area-inset-*) padding on .phone, or the header renders under the status bar');
+}
 for (const label of ['사용자 앱', '광고주', '관리자']) {
   if (!appSource.includes(`>${label}<`)) fail(`src/App.jsx must render a "${label}" mode button for route-bootstrap`);
 }

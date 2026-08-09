@@ -15,7 +15,8 @@ Error generating stack: `+o.message+`
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 .lg-root{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
-  background:#D9DEE5;color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;letter-spacing:-0.011em}
+  background:#D9DEE5;color:var(--ink);height:var(--vvh,100dvh);overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;letter-spacing:-0.011em}
 .lg-topbar{width:100%;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:center;gap:6px;padding:9px}
 .lg-topbar button{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 15px;border-radius:999px;
   font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s}
@@ -23,8 +24,12 @@ Error generating stack: `+o.message+`
 .lg-topbar .brand{color:var(--faint);font-size:12px;align-self:center;margin-right:auto;padding-left:10px;font-weight:800}
 .lg-topbar .brand b{color:var(--c)}
 
-.phone{width:100%;max-width:430px;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
-@media(min-width:520px){.phone{height:min(94vh,860px);margin:16px 0;border-radius:38px;border:1px solid #cfd5dd;
+/* viewport-fit=cover \uB97C \uC4F0\uBBC0\uB85C \uD398\uC774\uC9C0\uAC00 \uC0C1\uD0DC\uBC14\xB7\uB2E4\uC774\uB098\uBBF9 \uC544\uC77C\uB79C\uB4DC \uC544\uB798\uAE4C\uC9C0 \uADF8\uB824\uC9C4\uB2E4.
+   safe-area \uB97C \uC9C1\uC811 \uBA39\uC5B4\uC8FC\uC9C0 \uC54A\uC73C\uBA74 \uD5E4\uB354\uAC00 \uC544\uC77C\uB79C\uB4DC \uB4A4\uB85C \uB4E4\uC5B4\uAC00\uACE0, \uADF8 \uC601\uC5ED\uC758 \uD0ED\uC740
+   iOS \uAC00 \uAC00\uC838\uAC00 \uBC84\uB824\uC11C "\uC548 \uB20C\uB9AC\uB294 \uBC84\uD2BC"\uC774 \uB41C\uB2E4. \uD558\uB2E8\uC740 \uD648 \uC778\uB514\uCF00\uC774\uD130\uB97C \uD53C\uD55C\uB2E4. */
+.phone{width:100%;max-width:430px;height:100%;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+@media(min-width:520px){.phone{height:min(94vh,860px);margin:16px 0;padding:0;border-radius:38px;border:1px solid #cfd5dd;
   box-shadow:0 34px 90px rgba(40,55,80,.28)}}
 .scr{flex:1;display:flex;flex-direction:column;min-height:0}
 .center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:36px 28px}
@@ -122,7 +127,7 @@ Error generating stack: `+o.message+`
 
 /* \uBC14\uD140\uC2DC\uD2B8: \uB300\uD654 \uC704\uC5D0 \uB36E\uC774\uC9C0\uB9CC \uBC30\uACBD \uD0ED\xB7\uC190\uC7A1\uC774\uB85C \uC989\uC2DC \uB2EB\uD78C\uB2E4. */
 .sw-ov{position:absolute;inset:0;z-index:40;background:rgba(20,30,48,.32);display:flex;align-items:flex-end}
-.sw-sheet{width:100%;max-height:78%;background:var(--bg);border-radius:22px 22px 0 0;display:flex;
+.sw-sheet{width:100%;max-height:78%;background:var(--bg);border-radius:22px 22px 0 0;display:flex;padding-bottom:env(safe-area-inset-bottom);
   flex-direction:column;box-shadow:0 -14px 40px rgba(20,30,48,.22);animation:sheetUp .18s ease-out}
 @keyframes sheetUp{from{transform:translateY(14px);opacity:.6}to{transform:translateY(0);opacity:1}}
 .sw-grab{align-self:center;width:40px;height:4px;border:0;border-radius:999px;background:var(--rail);
@@ -273,7 +278,7 @@ Error generating stack: `+o.message+`
 
 .ov{position:absolute;inset:0;background:rgba(20,28,40,.42);display:flex;align-items:flex-end;z-index:30;animation:fade .2s}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.sheet{background:#fff;border-radius:24px 24px 0 0;padding:22px 20px 28px;width:100%;animation:up .25s cubic-bezier(.2,.7,.2,1)}
+.sheet{background:#fff;border-radius:24px 24px 0 0;padding:22px 20px calc(28px + env(safe-area-inset-bottom));width:100%;animation:up .25s cubic-bezier(.2,.7,.2,1)}
 @keyframes up{from{transform:translateY(40px)}to{transform:none}}
 .sheet h3{margin:0 0 5px;font-size:18px;font-weight:800} .sheet p{margin:0 0 16px;font-size:13px;color:var(--muted);line-height:1.5}
 .sheet input{width:100%;background:var(--paper2);border:1.5px solid var(--line);border-radius:13px;color:var(--ink);padding:14px;font-size:15px;outline:none;font-family:inherit}
