@@ -94,7 +94,7 @@ const CSS = `
 .lh2-off{flex:none;max-width:96px;border:1px solid var(--line);background:#fff;color:var(--muted);
   border-radius:999px;padding:6px 11px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;transition:.15s}
-.lh2-off.hot{background:var(--c);border-color:var(--c);color:#fff;box-shadow:0 4px 12px rgba(22,199,166,.35)}
+.lh2-off.hot{border-color:var(--c);background:var(--c-soft2);color:var(--c-d)}
 .lh2-detail{padding:0 12px 11px;display:flex;flex-direction:column;gap:8px}
 .lh2-now{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px}
 .lh2-now b{font-weight:800}
@@ -113,7 +113,13 @@ const CSS = `
   border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:11px;padding:8px 6px;
   font-size:12px;font-weight:750;cursor:pointer;transition:.15s;overflow:hidden;white-space:nowrap}
 .swt.on{border-color:var(--c);background:var(--c-soft2);color:var(--c-d)}
-.swt-i{font-size:14px;line-height:1}
+.swt-i{font-size:14px;line-height:1;flex:none}
+/* 긴 편성 제목·닉네임이 버튼을 밀어내지 않게 잘라낸다. */
+.swt-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* 함께하기 안에 몇 개가 열려 있는지. 0 이면 아예 그리지 않는다. */
+.swt-n{flex:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--c);color:#fff;
+  font-size:10px;font-weight:900;line-height:16px;text-align:center}
+.swt.on .swt-n{background:var(--c-d)}
 .swt-dot{position:absolute;top:6px;right:8px;width:5px;height:5px;border-radius:50%;background:var(--c)}
 
 /* 바텀시트: 대화 위에 덮이지만 배경 탭·손잡이로 즉시 닫힌다. */
@@ -127,6 +133,8 @@ const CSS = `
 .sw-tabs button{flex:1;border:0;background:none;color:var(--muted);font-size:13px;font-weight:800;
   padding:8px 0;border-radius:9px;cursor:pointer}
 .sw-tabs button.on{background:var(--c-soft2);color:var(--c-d)}
+/* 손잡이만으로는 닫는 법이 보이지 않는다. 명시적인 닫기를 같이 둔다. */
+.sw-tabs .sw-x{flex:none;width:34px;color:var(--faint);font-size:14px}
 .sw-sheet-body{overflow-y:auto;padding:12px 14px 20px}
 .sw-sheet-body::-webkit-scrollbar{width:0}
 .lh .cnt{margin-left:auto;font-size:12px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
@@ -250,13 +258,11 @@ const CSS = `
 @keyframes gone{to{opacity:0;transform:translateY(-22px);filter:blur(4px)}}
 .empty{color:var(--faint);font-size:13px;padding:18px 14px;text-align:center;line-height:1.5}
 
-/* composer + 하차 */
+/* composer */
 .comp{border-top:1px solid var(--line);padding:9px 12px 12px;background:var(--paper)}
-.getoff-wrap{margin-bottom:9px}
-.getoff{width:100%;border:1.5px solid var(--c);background:#fff;color:var(--c-d);border-radius:13px;padding:11px;font-size:13.5px;
-  font-weight:800;cursor:pointer;transition:.25s;display:flex;align-items:center;justify-content:center;gap:7px}
-.getoff.hot{background:var(--c);color:#fff;padding:15px;font-size:15.5px;box-shadow:0 8px 20px rgba(22,199,166,.4);animation:beat 1.1s infinite}
-@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.018)}}
+/* .getoff 는 이제 순수한 동작용 훅이다(runtime/instant-chat.js 가 이 클래스로 하차를 감지한다).
+   예전 화면 하단을 꽉 채우던 초록 버튼의 스타일이 남아 있어서, 헤더로 옮긴 뒤에도
+   .lh2-off 를 덮어쓰고 "나가기"가 대화보다 눈에 띄는 상태였다. 시각 규칙은 .lh2-off 에만 둔다. */
 .nk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-bottom:9px;padding:0 2px}
 .nk b{color:var(--c-d);font-weight:800} .nk button{background:none;border:none;color:var(--faint);text-decoration:underline;cursor:pointer;font-size:11px}
 .ipt{display:flex;gap:8px;align-items:flex-end}
@@ -410,16 +416,16 @@ const SEED_ADS = [
 ];
 
 /* 옆모습 전동차 아이콘 */
+// 지하철 전면부: 차체 + 전면창 + 전조등, 아래는 바퀴가 아니라 선로.
+// (예전 마크는 바퀴 두 개가 달려 있어 버스로 보였다.)
 function TrainMark({size=22, color="#16C7A6"}){
   return (
     <svg width={size} height={Math.round(size*0.64)} viewBox="0 0 42 26" fill="none" style={{display:"block"}}>
-      <path d="M5 8c0-2.5 2-4.5 4.5-4.5H28c5 0 9 4 9 9v5.5c0 1.9-1.5 3.5-3.5 3.5H8c-1.9 0-3-1.4-3-3.2z" fill={color}/>
-      <rect x="8.5" y="7.5" width="6.6" height="6.4" rx="1.6" fill="#fff" opacity="0.92"/>
-      <rect x="17.5" y="7.5" width="6.6" height="6.4" rx="1.6" fill="#fff" opacity="0.92"/>
-      <path d="M28 7.5h0.5c4 0 6.6 2.6 7.2 6.4H28z" fill="#fff" opacity="0.95"/>
-      <circle cx="33.5" cy="18" r="1.4" fill="#FFE08A"/>
-      <circle cx="13" cy="22.5" r="2.2" fill="#15181D"/>
-      <circle cx="28" cy="22.5" r="2.2" fill="#15181D"/>
+      <rect x="9" y="2" width="24" height="19" rx="5.5" fill={color}/>
+      <rect x="12.6" y="5.4" width="16.8" height="7.4" rx="2.4" fill="#fff" opacity="0.94"/>
+      <circle cx="14.6" cy="17" r="1.7" fill="#FFE08A"/>
+      <circle cx="27.4" cy="17" r="1.7" fill="#FFE08A"/>
+      <rect x="3" y="23" width="36" height="2.2" rx="1.1" fill={color} opacity="0.32"/>
     </svg>
   );
 }
@@ -465,6 +471,19 @@ function useContextualPlaylist(){
     return ()=> window.removeEventListener("subway:music", onPick);
   },[]);
   return rule;
+}
+
+/* 함께하기 안에 지금 몇 개가 열려 있는지 구독한다.
+   숫자를 툴바에 띄워 두지 않으면, 시트를 한 번 열어보기 전에는
+   그 안이 비었는지 아닌지 알 방법이 없다. */
+function usePlayCount(){
+  const [n, setN] = useState(()=> (typeof window!=="undefined" && window.SAMEWAY_PLAY_COUNT) || 0);
+  useEffect(()=>{
+    const on = (e)=> setN((e.detail && e.detail.count) || 0);
+    window.addEventListener("subway:play-count", on);
+    return ()=> window.removeEventListener("subway:play-count", on);
+  },[]);
+  return n;
 }
 
 /* ---------------- 위치 획득 ----------------
@@ -652,6 +671,11 @@ function LoungeApp(){
   const [geoErr, setGeoErr] = useState("");
   const [musicOff, setMusicOff] = useState(false);
   const contextualMusic = useContextualPlaylist();
+  const playCount = usePlayCount();
+  // 화면에는 "음악"만 뜨지만, 스크린리더에는 어떤 편성이 잡혔는지 그대로 읽어준다.
+  const musicLabel = musicOff ? "음악 꺼짐"
+    : (contextualMusic && contextualMusic.playlistTitle)
+      ? `음악 · ${contextualMusic.playlistTitle}` : "음악";
 
   const goneRef = useRef(false);
   const feedRef = useRef(null);
@@ -900,12 +924,13 @@ function LoungeApp(){
             <span className="lh2-dir">{nextStn ? `${nextStn} 방면` : (nearest ? `${nearest.name}역` : "")}</span>
             <span className="lh2-caret">{headOpen ? "▴" : "▾"}</span>
           </button>
-          <span className="lh2-people" title={`${count}명 참여 중`}>
-            <span className="dot-live"/>{count}
+          <span className="lh2-people" title={`이 라운지에 ${count}명이 함께 있어요`}>
+            <span className="dot-live"/>{count}명
           </span>
+          {/* 나가기는 대화보다 강하면 안 된다. 역에 닿았을 때만 살짝 올라온다. */}
           <button className={"lh2-off"+(arrNow?" hot":"")+" getoff"} onClick={getOff}
             title={arrNow && nearest ? `${nearest.name}역에서 내리기` : "내리기"}>
-            {arrNow ? "🚉 하차" : "내리기"}
+            내리기
           </button>
         </div>
 
@@ -936,16 +961,23 @@ function LoungeApp(){
 
       <div className="comp">
         {/* 부가 기능은 화면을 가리지 않고 여기서 열린다. */}
+        {/* 각 버튼은 "무엇이 들어 있는지"까지 표시한다.
+            라벨만 있으면 열어보기 전에는 안이 비었는지 알 수 없다. */}
         <div className="sw-toolbar">
-          <button className={"swt"+(sheet==="play"?" on":"")} onClick={()=>setSheet(sheet==="play"?null:"play")}>
-            <span className="swt-i">🎮</span>함께하기
+          <button className={"swt"+(sheet==="play"?" on":"")} onClick={()=>setSheet(sheet==="play"?null:"play")}
+            aria-label={playCount ? `함께하기 ${playCount}개` : "함께하기"}>
+            <span className="swt-i">🎲</span>함께하기
+            {playCount>0 && <span className="swt-n">{playCount}</span>}
           </button>
-          <button className={"swt"+(sheet==="music"?" on":"")} onClick={()=>setSheet(sheet==="music"?null:"music")}>
-            <span className="swt-i">🎵</span>음악
-            {contextualMusic && <span className="swt-dot"/>}
+          {/* 버튼 폭이 한글 여섯 자 남짓이라 편성 제목을 넣으면 잘려서 뜻을 잃는다.
+              라벨은 짧게 두고, 추천 편성이 잡혔다는 사실만 점으로 알린다. 제목은 시트 안에 있다. */}
+          <button className={"swt"+(sheet==="music"?" on":"")} onClick={()=>setSheet(sheet==="music"?null:"music")}
+            aria-label={musicLabel}>
+            <span className="swt-i">🎧</span><span className="swt-t">{musicOff ? "음악 꺼짐" : "음악"}</span>
+            {!musicOff && contextualMusic && <span className="swt-dot"/>}
           </button>
-          <button className="swt" onClick={()=>setNickModal(true)}>
-            <span className="swt-i">🙂</span>{nick || "이름"}
+          <button className="swt" onClick={()=>setNickModal(true)} aria-label={`이름 바꾸기 · 현재 ${nick || "랜덤"}`}>
+            <span className="swt-i">🙂</span><span className="swt-t">{nick || "이름"}</span>
           </button>
         </div>
       </div>
@@ -956,8 +988,11 @@ function LoungeApp(){
           <div className="sw-sheet" onClick={e=>e.stopPropagation()}>
             <button className="sw-grab" onClick={()=>setSheet(null)} aria-label="닫기"/>
             <div className="sw-tabs">
-              <button className={sheet==="play"?"on":""} onClick={()=>setSheet("play")}>함께하기</button>
+              <button className={sheet==="play"?"on":""} onClick={()=>setSheet("play")}>
+                함께하기{playCount>0 ? ` ${playCount}` : ""}
+              </button>
               <button className={sheet==="music"?"on":""} onClick={()=>setSheet("music")}>음악</button>
+              <button className="sw-x" onClick={()=>setSheet(null)} aria-label="닫기">✕</button>
             </div>
             <div className="sw-sheet-body">
               {/* 두 슬롯 모두 항상 DOM 에 두고 보이기만 토글한다.

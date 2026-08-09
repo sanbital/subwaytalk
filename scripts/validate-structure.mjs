@@ -107,6 +107,16 @@ if (!chat.includes("m.is_ai?'<span class=\"ai\">AI</span>'")) fail('instant chat
 // AI 발화도 사람과 같은 모더레이션을 통과해야 한다.
 if (!fn.includes('if (!moderate(generated.body).ok) return;')) fail('AI companion output must pass the same moderation as human messages');
 
+// 함께하기 탭은 매일 누가 행을 넣어주지 않아도 내용이 있어야 한다.
+// game_date=eq.<오늘> 로 되돌아가면 시드 다음 날 탭이 통째로 비어버린다.
+const play = read('runtime/social-play.js');
+if (play.includes('&game_date=eq.')) {
+  fail('daily games must not be pinned to today (use game_date=lte.<today>); otherwise the 함께하기 tab empties out a day after seeding');
+}
+if (!play.includes("dispatchEvent(new CustomEvent('subway:play-count'")) {
+  fail('social play must announce how many activities are open so the toolbar can show it without being opened');
+}
+
 // 광고 이벤트는 검증 함수를 통해서만 기록되어야 한다.
 const ads = read('runtime/ad-runtime.js');
 if (ads.includes('/rest/v1/subway_ad_events')) fail('ad events must go through the subway-ad-event function, not a direct table insert');
