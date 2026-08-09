@@ -8,7 +8,13 @@
 <meta property="og:title" content="같은 방향 · 지하철 라운지"/>
 <meta property="og:description" content="내리면 남긴 말은 사라집니다."/>
 <title>칙칙톡톡 · 지하철 라운지</title>
-<style>html,body{margin:0;padding:0;background:#D9DEE5}</style>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<!-- 문서 자체는 절대 스크롤되지 않는다.
+     iOS 는 키보드가 올라오면 포커스된 입력창을 보이게 하려고 문서를 통째로 스크롤한다.
+     그러면 헤더가 상태바 뒤로 밀려 올라가고, 상태바 영역의 탭은 페이지가 아니라 iOS 가 먹는다.
+     사용자에게는 "터치가 안 눌린다"로 보인다. 스크롤 자체를 없애서 그 경로를 막는다. -->
+<style>html,body{margin:0;padding:0;background:#D9DEE5;height:100%;overflow:hidden;overscroll-behavior:none}</style>
 </head>
 <body>
 <div id="root"></div>

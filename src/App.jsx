@@ -17,7 +17,8 @@ const CSS = `
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 .lg-root{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
-  background:#D9DEE5;color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;letter-spacing:-0.011em}
+  background:#D9DEE5;color:var(--ink);height:var(--vvh,100dvh);overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;letter-spacing:-0.011em}
 .lg-topbar{width:100%;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:center;gap:6px;padding:9px}
 .lg-topbar button{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 15px;border-radius:999px;
   font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s}
@@ -25,8 +26,12 @@ const CSS = `
 .lg-topbar .brand{color:var(--faint);font-size:12px;align-self:center;margin-right:auto;padding-left:10px;font-weight:800}
 .lg-topbar .brand b{color:var(--c)}
 
-.phone{width:100%;max-width:430px;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
-@media(min-width:520px){.phone{height:min(94vh,860px);margin:16px 0;border-radius:38px;border:1px solid #cfd5dd;
+/* viewport-fit=cover 를 쓰므로 페이지가 상태바·다이나믹 아일랜드 아래까지 그려진다.
+   safe-area 를 직접 먹어주지 않으면 헤더가 아일랜드 뒤로 들어가고, 그 영역의 탭은
+   iOS 가 가져가 버려서 "안 눌리는 버튼"이 된다. 하단은 홈 인디케이터를 피한다. */
+.phone{width:100%;max-width:430px;height:100%;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+@media(min-width:520px){.phone{height:min(94vh,860px);margin:16px 0;padding:0;border-radius:38px;border:1px solid #cfd5dd;
   box-shadow:0 34px 90px rgba(40,55,80,.28)}}
 .scr{flex:1;display:flex;flex-direction:column;min-height:0}
 .center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:36px 28px}
@@ -124,7 +129,7 @@ const CSS = `
 
 /* 바텀시트: 대화 위에 덮이지만 배경 탭·손잡이로 즉시 닫힌다. */
 .sw-ov{position:absolute;inset:0;z-index:40;background:rgba(20,30,48,.32);display:flex;align-items:flex-end}
-.sw-sheet{width:100%;max-height:78%;background:var(--bg);border-radius:22px 22px 0 0;display:flex;
+.sw-sheet{width:100%;max-height:78%;background:var(--bg);border-radius:22px 22px 0 0;display:flex;padding-bottom:env(safe-area-inset-bottom);
   flex-direction:column;box-shadow:0 -14px 40px rgba(20,30,48,.22);animation:sheetUp .18s ease-out}
 @keyframes sheetUp{from{transform:translateY(14px);opacity:.6}to{transform:translateY(0);opacity:1}}
 .sw-grab{align-self:center;width:40px;height:4px;border:0;border-radius:999px;background:var(--rail);
@@ -275,7 +280,7 @@ const CSS = `
 
 .ov{position:absolute;inset:0;background:rgba(20,28,40,.42);display:flex;align-items:flex-end;z-index:30;animation:fade .2s}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.sheet{background:#fff;border-radius:24px 24px 0 0;padding:22px 20px 28px;width:100%;animation:up .25s cubic-bezier(.2,.7,.2,1)}
+.sheet{background:#fff;border-radius:24px 24px 0 0;padding:22px 20px calc(28px + env(safe-area-inset-bottom));width:100%;animation:up .25s cubic-bezier(.2,.7,.2,1)}
 @keyframes up{from{transform:translateY(40px)}to{transform:none}}
 .sheet h3{margin:0 0 5px;font-size:18px;font-weight:800} .sheet p{margin:0 0 16px;font-size:13px;color:var(--muted);line-height:1.5}
 .sheet input{width:100%;background:var(--paper2);border:1.5px solid var(--line);border-radius:13px;color:var(--ink);padding:14px;font-size:15px;outline:none;font-family:inherit}
