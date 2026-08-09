@@ -98,7 +98,11 @@ export async function generateCompanionMessage(ctx: Ctx): Promise<{ nick: string
   const client = new Anthropic({ apiKey });
 
   const context = [
-    `노선: ${ctx.line} (${ctx.direction === "up" ? "상행" : "하행"} 방향)`,
+    // "all" 은 방향으로 방을 가르지 않는 노선 단위 방이다.
+    // 이때 상·하행을 단정하면 AI 가 없는 사실을 지어내게 된다.
+    ctx.direction === "up" ? `노선: ${ctx.line} (상행 방향)`
+      : ctx.direction === "down" ? `노선: ${ctx.line} (하행 방향)`
+      : `노선: ${ctx.line} (상·하행 섞임 — 방향은 언급하지 마라)`,
     ctx.station ? `현재 역: ${ctx.station}` : null,
     `시간대: ${daypartLabel(ctx.daypart)}`,
     `실제 참여자: ${ctx.humans}명 / AI 동행: ${ctx.companions}명`,

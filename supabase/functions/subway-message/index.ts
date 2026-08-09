@@ -104,6 +104,23 @@ function daypartKST(): string {
 }
 
 /**
+ * 최근 15분 안에 이 방에서 말한 사람 수(AI 동행 포함).
+ * 조용히 보고만 있는 사람은 세지 않는다 — 방 안에 아무 근거도 남기지 않기 때문이다.
+ * 실패하면 0 을 돌려주고, 화면은 이전 값을 유지한다.
+ */
+async function countParticipants(room: string): Promise<number> {
+  const windowStart = new Date(Date.now() - 15 * 60_000).toISOString();
+  const res = await db(
+    `subway_ephemeral_messages?select=session_id` +
+    `&room_key=eq.${encodeURIComponent(room)}&created_at=gt.${encodeURIComponent(windowStart)}` +
+    `&limit=200`,
+  );
+  if (!res.ok) return 0;
+  const rows = await res.json() as Array<{ session_id?: unknown }>;
+  return new Set(rows.map((r) => String(r.session_id))).size;
+}
+
+/**
  * 방이 비어 보이면 AI 동행을 한 명 더 등장시킨다.
  * 사람이 목표 인원만큼 모이면 shouldGenerate() 가 false 를 돌려주므로 자연히 멈춘다.
  */
@@ -140,7 +157,8 @@ async function topUpCompanions(room: string, station: string | null): Promise<vo
   const ctx = {
     room,
     line: line || "노선 미상",
-    direction: direction || "up",
+    // "all" = 방향으로 방을 가르지 않는 노선 단위 방(runtime/instant-chat.js 참고).
+    direction: direction || "all",
     station,
     daypart: daypartKST(),
     // 프롬프트에는 오래된 것부터 넣어야 대화 흐름이 읽힌다.
@@ -251,13 +269,17 @@ Deno.serve(async (req: Request) => {
       author: await authorOf(String(m.session_id), room),
     })));
 
+    // 헤더의 참여자 수. 예전에는 앱 전역 KV 프레즌스를 세서 노선과 무관했고,
+    // AI 동행이 떠드는 방에서도 "1명"으로 보였다. 방 안에서 최근 발화한 사람을 센다.
+    const participants = await countParticipants(room);
+
     // AI 동행 보충은 응답을 막지 않는다. 폴링 지연에 생성 시간이 얹히면 안 된다.
     try {
       const station = d.station == null ? null : String(d.station).slice(0, 64);
       EdgeRuntime.waitUntil(topUpCompanions(room, station));
     } catch { /* waitUntil 미지원 환경에서는 조용히 건너뛴다 */ }
 
-    return out({ ok: true, messages, me: await authorOf(sid, room) });
+    return out({ ok: true, messages, participants, me: await authorOf(sid, room) });
   }
 
   if (action === "leave") {

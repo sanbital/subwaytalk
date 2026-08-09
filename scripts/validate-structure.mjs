@@ -94,6 +94,10 @@ for (const action of ["action:'join'", "action:'send'", "action:'leave'", "actio
   if (!chat.includes(action)) fail(`instant chat must use the ${action} API`);
 }
 if (!chat.includes('token:token')) fail('instant chat must send its session token with privileged actions');
+// 지하에서는 진행 방향이 안 잡힌다. 방 키가 방향을 요구하면 그 구간 내내 채팅이 잠긴다.
+if (/return\s+line\s*\+\s*'\|'\s*\+\s*\(\s*dir/.test(chat)) {
+  fail('chat rooms must not be split by travel direction; underground GPS cannot resolve it and the composer locks for the whole ride');
+}
 
 const fn = read('supabase/functions/subway-message/index.ts');
 if (!fn.includes('requireSession')) fail('subway-message must verify session ownership before send/leave');

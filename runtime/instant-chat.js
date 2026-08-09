@@ -31,15 +31,19 @@
     return token;
   }
 
-  // 방 키는 "노선 + 진행 방향"으로만 만든다.
-  // 이전에는 다음 역 이름을 넣어서 한 정거장마다 방이 갈라졌고, 방이 바뀌어도
-  // 이전 방 메시지가 화면에 남고 새 방의 기존 메시지는 영영 불러오지 못했다.
+  // 방 키는 노선 하나당 하나다.
+  //
+  // 예전에는 "노선 + 진행 방향"이었는데, 지하 구간에서는 저정밀 측위밖에 안 되고
+  // (실측 ±2000m) 역 간격보다 오차가 커서 진행 방향 표가 모이지 않는다.
+  // 그러면 방이 안 열리고 입력창이 잠긴 채로 주행 내내 아무 말도 못 한다.
+  // 메시징 서비스가 위치 판정 실패로 통째로 멈추는 건 맞바꿀 수 없는 손해라,
+  // 방향은 방을 가르는 기준에서 빼고 헤더 표시용 정보로만 남긴다.
+  // (그 대신 상·하행이 한 방에 섞인다. 유저풀이 두 방을 채울 만큼 커지면 다시 나눈다.)
   function roomKey(){
     var l=window.SAMEWAY_LOCATION_STATE||{},a=window.SAMEWAY_ACCESS_STATE||{};
     var line=l.line||a.line;
-    var dir=Number(l.direction);
-    if(!line||!dir)return null;
-    return line+'|'+(dir>0?'up':'down');
+    if(!line)return null;
+    return line+'|all';
   }
   function esc(s){return String(s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});}
 
@@ -61,8 +65,8 @@
       return;
     }
     box.innerHTML=roomKey()
-      ? '<div class="sw-fast-empty"><div class="e-i">💬</div>같은 방향 사람에게<br/>가볍게 한마디 남겨보세요.</div>'
-      : '<div class="sw-fast-empty"><div class="e-i">🧭</div>이동 방향을 확인하는 중이에요.<br/><span>한두 정거장 지나면 같은 방향 라운지가 열려요.</span></div>';
+      ? '<div class="sw-fast-empty"><div class="e-i">💬</div>같은 열차에 탄 사람에게<br/>가볍게 한마디 남겨보세요.</div>'
+      : '<div class="sw-fast-empty"><div class="e-i">🧭</div>어느 노선인지 확인하는 중이에요.<br/><span>지하에서는 조금 걸릴 수 있어요.</span></div>';
   }
 
   async function poll(){
@@ -75,6 +79,9 @@
       var loc=window.SAMEWAY_LOCATION_STATE||{};
       var j=await api({action:'list',room_key:room,session_id:sid,token:token,after:lastIso,station:loc.stationKey||null});
       if(j.me)me=j.me;
+      // 헤더 참여자 수는 이 방의 실제 인원이어야 한다. 앱은 이 이벤트만 본다.
+      if(typeof j.participants==='number')
+        window.dispatchEvent(new CustomEvent('subway:participants',{detail:{count:j.participants}}));
       var fresh=0;
       (j.messages||[]).forEach(function(m){
         if(!seen.has(m.id))fresh++;
@@ -99,7 +106,7 @@
   async function send(text){
     var body=String(text||'').trim();if(!body)return false;
     var room=roomKey();
-    if(!room){warn('아직 이동 방향을 확인하는 중이에요.');return false;}
+    if(!room){warn('아직 어느 노선인지 확인하는 중이에요.');return false;}
     var temp='tmp_'+Date.now();
     seen.set(temp,{id:temp,nick:nick,body:body,created_at:new Date().toISOString(),pending:true});draw();
     try{
@@ -159,7 +166,7 @@
     var c=document.getElementById('sameway-fast-composer');if(!c)return;
     var ready=!!roomKey();
     var ta=c.querySelector('textarea'),btn=c.querySelector('button');
-    if(ta){ta.disabled=!ready;ta.placeholder=ready?'가볍게 한마디':'이동 방향 확인 중…';}
+    if(ta){ta.disabled=!ready;ta.placeholder=ready?'가볍게 한마디':'노선 확인 중…';}
     if(btn)btn.disabled=!ready;
     c.classList.toggle('locked',!ready);
   }
@@ -184,5 +191,5 @@
   style.textContent='#sameway-fast-chat{display:flex;flex-direction:column;flex:1;min-height:0}#sameway-fast-messages{display:flex;flex-direction:column;justify-content:flex-end;gap:8px;flex:1;min-height:0;overflow-y:auto}.sw-fast-msg{max-width:82%;background:#fff;border:1px solid #E1E5EB;border-radius:15px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,30,48,.05)}.sw-fast-msg.me{align-self:flex-end;background:#E7FAF5;border-color:#CFF3EB}.sw-fast-msg .n{font-size:10.5px;color:#727A86;font-weight:800;margin-bottom:3px}.sw-fast-msg .b{font-size:14px;line-height:1.45}.sw-fast-empty{text-align:center;color:#A4ABB6;font-size:12.5px;line-height:1.7;padding:38px 20px;font-weight:650}.sw-fast-empty .e-i{font-size:30px;margin-bottom:10px;opacity:.75}.sw-fast-empty span{font-size:11.5px;color:#C2C8D0}.sw-fast-msg .n .ai{margin-left:5px;padding:1px 5px;border-radius:5px;background:#EEF1F5;color:#8A93A0;font-size:9px;font-weight:800;vertical-align:1px}#sameway-fast-composer.locked{opacity:.55}#sameway-fast-composer{padding:0 12px 10px}.sw-fast-row{display:flex;gap:8px}.sw-fast-row textarea{flex:1;border:1px solid #E1E5EB;border-radius:14px;padding:11px 12px;resize:none;font:inherit;outline:none}.sw-fast-row button{width:44px;border:0;border-radius:14px;background:#16C7A6;color:#fff;font-size:18px;font-weight:900}.sw-fast-note{font-size:10.5px;color:#A4ABB6;margin-top:5px}#sameway-fast-warning{font-size:11px;color:#E5484D;margin-bottom:4px}';
   document.head.appendChild(style);
 
-  window.SAMEWAY_INSTANT_CHAT={version:'5.0.0',send:send,leave:leave,poll:poll,roomKey:roomKey};
+  window.SAMEWAY_INSTANT_CHAT={version:'6.0.0',send:send,leave:leave,poll:poll,roomKey:roomKey};
 })();
